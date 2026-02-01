@@ -5,6 +5,7 @@ import { useToast } from '@/hooks/use-toast';
 import { loadFaceModels, detectFaces, findBestMatch, FaceDetection } from '@/lib/faceRecognition';
 import { getAllStudents, addAttendance, checkDuplicateAttendance, getAttendanceByDate, Student, AttendanceRecord, getSettings } from '@/lib/database';
 import { format } from 'date-fns';
+import { Camera, StopCircle, Play, Loader2, UserCheck, AlertCircle } from 'lucide-react';
 
 interface RecognizedFace {
   detection: FaceDetection;
@@ -201,110 +202,143 @@ export default function AttendancePage() {
   const lateCount = todayAttendance.filter(a => a.status === 'late').length;
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-8 p-8 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Take Attendance</h1>
-          <p className="text-muted-foreground">Real-time face recognition</p>
+          <h1 className="text-3xl font-bold tracking-tight">Attendance</h1>
+          <p className="text-muted-foreground mt-1">
+            Automated face recognition attendance system
+          </p>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-sm">Present: {presentCount}</span>
-          <span className="text-sm">Late: {lateCount}</span>
+        <div className="flex gap-4">
+          <div className="flex items-center gap-2 px-4 py-2 bg-secondary rounded-lg">
+            <UserCheck className="h-4 w-4 text-green-600" />
+            <span className="font-medium">{presentCount} Present</span>
+          </div>
+          <div className="flex items-center gap-2 px-4 py-2 bg-secondary rounded-lg">
+            <AlertCircle className="h-4 w-4 text-yellow-600" />
+            <span className="font-medium">{lateCount} Late</span>
+          </div>
         </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Camera View */}
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Camera Feed</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="relative aspect-video bg-muted rounded-lg overflow-hidden">
-              {!isStreaming && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-4">
-                  <p className="text-muted-foreground">Camera not started</p>
-                </div>
-              )}
-              <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
-              <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
-              {isRecognizing && (
-                <div className="absolute top-4 left-4 bg-red-500 text-white px-3 py-1 rounded text-sm">
-                  Recording
-                </div>
-              )}
+        {/* Main Camera Area */}
+        <Card className="lg:col-span-2 overflow-hidden border-2">
+          <CardHeader className="flex flex-row items-center justify-between bg-muted/50 py-3">
+            <div className="flex items-center gap-2">
+              <Camera className="h-4 w-4" />
+              <h3 className="font-medium">Live Feed</h3>
             </div>
+            {isRecognizing && (
+              <span className="flex h-2 w-2 relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+              </span>
+            )}
+          </CardHeader>
+          <div className="relative aspect-video bg-black">
+            {!isStreaming && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground bg-muted/10">
+                <Camera className="h-12 w-12 mb-2 opacity-50" />
+                <p>Camera is turned off</p>
+              </div>
+            )}
+            <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+            <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
 
-            <div className="flex flex-wrap gap-3 mt-4">
-              {!modelsLoaded && (
-                <Button onClick={handleLoadModels} disabled={modelsLoading}>
-                  {modelsLoading ? 'Loading Models...' : 'Load Face Models'}
+            {/* Camera Controls Overlay */}
+            <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent flex items-center justify-center gap-4">
+              {!modelsLoaded && !isStreaming && (
+                <Button onClick={handleLoadModels} disabled={modelsLoading} variant="secondary" size="sm">
+                  {modelsLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Load Models'}
+                  {modelsLoading ? 'Loading...' : 'Load Models'}
                 </Button>
               )}
-              
-              {!isStreaming ? (
-                <Button onClick={startCamera} disabled={!modelsLoaded}>Start Camera</Button>
-              ) : (
-                <Button variant="destructive" onClick={stopCamera}>Stop Camera</Button>
+
+              {!isStreaming && (
+                <Button onClick={startCamera} disabled={!modelsLoaded} variant="default" size="sm">
+                  <Camera className="mr-2 h-4 w-4" /> Start Camera
+                </Button>
+              )}
+
+              {isStreaming && (
+                <Button onClick={stopCamera} variant="destructive" size="sm">
+                  <StopCircle className="mr-2 h-4 w-4" /> Stop Camera
+                </Button>
               )}
 
               {isStreaming && !isRecognizing && (
-                <Button onClick={startRecognition} className="bg-green-600 hover:bg-green-700">Start Recognition</Button>
+                <Button onClick={startRecognition} className="bg-green-600 hover:bg-green-700" size="sm">
+                  <Play className="mr-2 h-4 w-4" /> Start Auto-Attendance
+                </Button>
               )}
 
               {isRecognizing && (
-                <Button variant="outline" onClick={stopRecognition}>Stop Recognition</Button>
+                <Button onClick={stopRecognition} variant="outline" className="bg-white/10 text-white hover:bg-white/20 border-white/20" size="sm">
+                  Pause Scan
+                </Button>
               )}
             </div>
-          </CardContent>
+          </div>
         </Card>
 
-        {/* Live Recognition Feed */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Detected Faces</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {recognizedFaces.length === 0 ? (
-              <p className="text-center py-8 text-muted-foreground text-sm">No faces detected</p>
-            ) : (
-              recognizedFaces.map((face, index) => (
-                <div key={index} className={`p-3 rounded-lg border ${face.isRecognized ? 'border-green-500 bg-green-50' : 'border-red-500 bg-red-50'}`}>
-                  <p className="font-medium">{face.isRecognized ? face.studentName : 'Unknown'}</p>
-                  {face.isRecognized && <p className="text-xs text-muted-foreground">Confidence: {face.confidence}%</p>}
+        {/* Sidebar: Recent & Detected */}
+        <div className="space-y-6">
+          <Card>
+            <CardHeader className="py-3">
+              <CardTitle className="text-sm font-medium">Real-time Detections</CardTitle>
+            </CardHeader>
+            <CardContent className="py-2 min-h-[100px] max-h-[200px] overflow-y-auto">
+              {recognizedFaces.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">No faces in view</p>
+              ) : (
+                <div className="space-y-2">
+                  {recognizedFaces.map((face, i) => (
+                    <div key={i} className={`flex items-center justify-between p-2 rounded text-sm ${face.isRecognized ? 'bg-green-500/10 text-green-700' : 'bg-red-500/10 text-red-700'}`}>
+                      <span>{face.isRecognized ? face.studentName : 'Unknown Person'}</span>
+                      <span className="text-xs opacity-70">{face.confidence ? Math.round(face.confidence * 100) : 0}%</span>
+                    </div>
+                  ))}
                 </div>
-              ))
-            )}
-          </CardContent>
-        </Card>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="flex-1">
+            <CardHeader className="py-3">
+              <CardTitle className="text-sm font-medium">Today's Log</CardTitle>
+            </CardHeader>
+            <CardContent className="py-2">
+              <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
+                {todayAttendance.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-8">No attendance marked yet</p>
+                ) : (
+                  todayAttendance.slice().reverse().map((record) => (
+                    <div key={record.id} className="flex items-center justify-between p-2 border rounded-lg bg-card text-sm">
+                      <div className="flex items-center gap-3">
+                        <div className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold ${record.status === 'present' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                          }`}>
+                          {record.studentName.charAt(0)}
+                        </div>
+                        <div>
+                          <p className="font-medium leading-none">{record.studentName}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{record.time}</p>
+                        </div>
+                      </div>
+                      <div className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider ${record.status === 'present' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                        }`}>
+                        {record.status}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
-
-      {/* Today's Attendance */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Today's Attendance ({format(new Date(), 'MMM d, yyyy')})</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {todayAttendance.length === 0 ? (
-            <p className="text-center py-8 text-muted-foreground">No attendance records yet</p>
-          ) : (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {todayAttendance.map((record) => (
-                <div key={record.id} className="flex items-center gap-3 p-3 rounded-lg border">
-                  <div className="flex-1">
-                    <p className="font-medium">{record.studentName}</p>
-                    <p className="text-xs text-muted-foreground">{record.time}</p>
-                  </div>
-                  <span className={`px-2 py-1 rounded text-xs font-medium ${record.status === 'present' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                    {record.status}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
     </div>
   );
 }

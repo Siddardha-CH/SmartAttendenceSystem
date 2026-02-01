@@ -10,6 +10,14 @@ import { useToast } from '@/hooks/use-toast';
 import { getAllStudents, addStudent, updateStudent, deleteStudent, Student } from '@/lib/database';
 import { exportStudentsToExcel } from '@/lib/excelExport';
 import { useNavigate } from 'react-router-dom';
+import { Search, Plus, Download, MoreHorizontal, User, ScanFace } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 const classes = ['Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5', 'Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10', 'Class 11', 'Class 12'];
 const sections = ['A', 'B', 'C', 'D'];
@@ -42,13 +50,14 @@ export default function StudentsPage() {
       setStudents(data);
     } catch (error) {
       console.error('Failed to load students:', error);
+      toast({ title: 'Error', description: 'Failed to load students', variant: 'destructive' });
     } finally {
       setIsLoading(false);
     }
   }
 
   const filteredStudents = students.filter(student => {
-    const matchesSearch = 
+    const matchesSearch =
       student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       student.studentId.toLowerCase().includes(searchQuery.toLowerCase()) ||
       student.email.toLowerCase().includes(searchQuery.toLowerCase());
@@ -78,7 +87,7 @@ export default function StudentsPage() {
     try {
       if (editingStudent) {
         await updateStudent(editingStudent.id, formData);
-        toast({ title: 'Student Updated' });
+        toast({ title: 'Student updated successfully' });
       } else {
         await addStudent({
           ...formData,
@@ -86,7 +95,7 @@ export default function StudentsPage() {
           faceDescriptor: null,
           faceImages: [],
         });
-        toast({ title: 'Student Added' });
+        toast({ title: 'Student added successfully' });
       }
       await loadStudents();
       setIsDialogOpen(false);
@@ -100,7 +109,7 @@ export default function StudentsPage() {
     try {
       await deleteStudent(student.id);
       await loadStudents();
-      toast({ title: 'Student Deleted' });
+      toast({ title: 'Student deleted successfully' });
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to delete student.', variant: 'destructive' });
     }
@@ -112,58 +121,42 @@ export default function StudentsPage() {
   };
 
   if (isLoading) {
-    return <div className="flex h-full items-center justify-center"><p>Loading...</p></div>;
+    return <div className="flex h-full items-center justify-center text-muted-foreground"><p>Loading students...</p></div>;
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-8 p-8 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Students</h1>
-          <p className="text-muted-foreground">Manage student records</p>
+          <h1 className="text-3xl font-bold tracking-tight">Students</h1>
+          <p className="text-muted-foreground mt-1">Manage student records and face data</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={handleExport}>Export</Button>
-          <Button onClick={() => handleOpenDialog()}>Add Student</Button>
+          <Button variant="outline" onClick={handleExport}>
+            <Download className="mr-2 h-4 w-4" /> Export
+          </Button>
+          <Button onClick={() => handleOpenDialog()}>
+            <Plus className="mr-2 h-4 w-4" /> Add Student
+          </Button>
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-2xl font-bold">{students.length}</p>
-            <p className="text-sm text-muted-foreground">Total Students</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-2xl font-bold text-green-600">{students.filter(s => s.faceDescriptor).length}</p>
-            <p className="text-sm text-muted-foreground">Face Registered</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-2xl font-bold text-yellow-600">{students.filter(s => !s.faceDescriptor).length}</p>
-            <p className="text-sm text-muted-foreground">Pending Registration</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Filters */}
       <Card>
-        <CardContent className="pt-6">
-          <div className="flex flex-col gap-4 md:flex-row">
-            <Input
-              placeholder="Search by name, ID, or email..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="flex-1"
-            />
+        <CardHeader className="pb-4">
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by name, ID, or email..."
+                className="pl-9"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
             <Select value={filterClass} onValueChange={setFilterClass}>
               <SelectTrigger className="w-full md:w-48">
-                <SelectValue placeholder="Filter by class" />
+                <SelectValue placeholder="Filter by Class" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Classes</SelectItem>
@@ -171,70 +164,92 @@ export default function StudentsPage() {
               </SelectContent>
             </Select>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Students Table */}
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Student ID</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Class</TableHead>
-                <TableHead>Section</TableHead>
-                <TableHead>Face Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredStudents.length === 0 ? (
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                    No students found
-                  </TableCell>
+                  <TableHead className="w-[100px]">ID</TableHead>
+                  <TableHead>Student</TableHead>
+                  <TableHead>Class</TableHead>
+                  <TableHead>Face Data</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ) : (
-                filteredStudents.map((student) => (
-                  <TableRow key={student.id}>
-                    <TableCell className="font-mono">{student.studentId}</TableCell>
-                    <TableCell className="font-medium">{student.name}</TableCell>
-                    <TableCell>{student.email}</TableCell>
-                    <TableCell>{student.class}</TableCell>
-                    <TableCell>{student.section}</TableCell>
-                    <TableCell>
-                      {student.faceDescriptor ? (
-                        <span className="text-green-600 text-sm">Registered ({student.faceImages.length} samples)</span>
-                      ) : (
-                        <span className="text-yellow-600 text-sm">Not Registered</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        {!student.faceDescriptor && (
-                          <Button variant="ghost" size="sm" onClick={() => navigate(`/register-face?student=${student.id}`)}>
-                            Register
-                          </Button>
-                        )}
-                        <Button variant="ghost" size="sm" onClick={() => handleOpenDialog(student)}>
-                          Edit
-                        </Button>
-                        <Button variant="ghost" size="sm" className="text-destructive" onClick={() => handleDelete(student)}>
-                          Delete
-                        </Button>
-                      </div>
+              </TableHeader>
+              <TableBody>
+                {filteredStudents.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                      No students found matching your criteria
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                ) : (
+                  filteredStudents.map((student) => (
+                    <TableRow key={student.id}>
+                      <TableCell className="font-mono text-xs">{student.studentId}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <div className="h-8 w-8 rounded-full bg-secondary flex items-center justify-center">
+                            <User className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                          <div>
+                            <div className="font-medium">{student.name}</div>
+                            <div className="text-xs text-muted-foreground">{student.email}</div>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-secondary text-secondary-foreground">
+                          {student.class} - {student.section}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        {student.faceDescriptor ? (
+                          <div className="flex items-center text-green-600 text-xs font-medium">
+                            <ScanFace className="mr-1 h-3 w-3" />
+                            Registered
+                          </div>
+                        ) : (
+                          <div className="flex items-center text-yellow-600 text-xs font-medium">
+                            <ScanFace className="mr-1 h-3 w-3" />
+                            Pending
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            <DropdownMenuItem onClick={() => navigate(`/register-face?student=${student.id}`)}>
+                              Register Face
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleOpenDialog(student)}>
+                              Edit Details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="text-red-600" onClick={() => handleDelete(student)}>
+                              Delete Student
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+          <div className="mt-4 text-xs text-muted-foreground text-center">
+            Showing {filteredStudents.length} of {students.length} students
+          </div>
         </CardContent>
       </Card>
 
-      {/* Add/Edit Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent>
           <DialogHeader>

@@ -7,6 +7,7 @@ import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { loadFaceModels, detectSingleFace, areModelsLoaded, canvasToBase64, FaceDetection } from '@/lib/faceRecognition';
 import { getAllStudents, updateStudent, Student } from '@/lib/database';
+import { Camera, Save, RefreshCw, Trash2, CheckCircle2, AlertCircle } from 'lucide-react';
 
 const REQUIRED_SAMPLES = 5;
 
@@ -22,7 +23,7 @@ export default function RegisterFacePage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  
+
   const [students, setStudents] = useState<Student[]>([]);
   const [selectedStudentId, setSelectedStudentId] = useState<string>('');
   const [isStreaming, setIsStreaming] = useState(false);
@@ -43,7 +44,7 @@ export default function RegisterFacePage() {
 
   async function loadStudents() {
     const data = await getAllStudents();
-    setStudents(data.filter(s => !s.faceDescriptor));
+    setStudents(data); // Allow re-registering too, or filter if needed
   }
 
   const selectedStudent = students.find(s => s.id === selectedStudentId);
@@ -92,7 +93,7 @@ export default function RegisterFacePage() {
     try {
       const detection = await detectSingleFace(videoRef.current);
       setCurrentDetection(detection);
-      
+
       const canvas = canvasRef.current;
       const video = videoRef.current;
       if (canvas && video) {
@@ -136,14 +137,14 @@ export default function RegisterFacePage() {
         faceCanvas.height = 100;
         const faceCtx = faceCanvas.getContext('2d');
         if (faceCtx) faceCtx.drawImage(canvas, x, y, width, height, 0, 0, 100, 100);
-        
+
         const sample: CapturedSample = {
-          id: crypto.randomUUID(),
+          id: Math.random().toString(36).substring(2, 15),
           descriptor: currentDetection.descriptor,
           thumbnail: canvasToBase64(faceCanvas),
         };
         setCapturedSamples(prev => [...prev, sample]);
-        toast({ title: `Sample ${capturedSamples.length + 1}/${REQUIRED_SAMPLES} captured` });
+        toast({ title: `Sample captured (${capturedSamples.length + 1}/${REQUIRED_SAMPLES})` });
       }
     } catch (error) {
       toast({ title: 'Capture Failed', variant: 'destructive' });
@@ -166,7 +167,7 @@ export default function RegisterFacePage() {
         faceDescriptor: avgDescriptor,
         faceImages: capturedSamples.map(s => s.thumbnail),
       });
-      toast({ title: 'Face Registered', description: `${selectedStudent.name}'s face has been registered.` });
+      toast({ title: 'Registration Successful', description: `${selectedStudent.name} can now use face attendance.` });
       stopCamera();
       navigate('/students');
     } catch (error) {
@@ -181,140 +182,162 @@ export default function RegisterFacePage() {
   }, []);
 
   return (
-    <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Register Face</h1>
-        <p className="text-muted-foreground">Capture face samples for attendance recognition</p>
+    <div className="space-y-8 p-8 max-w-7xl mx-auto">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Face Registration</h1>
+          <p className="text-muted-foreground mt-1">Enroll students for biometric attendance</p>
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Camera Section */}
-        <Card>
+        {/* Camera Feed */}
+        <Card className="flex flex-col">
           <CardHeader>
-            <CardTitle>Face Capture</CardTitle>
+            <CardTitle>Camera Feed</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="flex-1 space-y-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Select Student</label>
               <Select value={selectedStudentId} onValueChange={setSelectedStudentId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Choose a student" />
+                  <SelectValue placeholder="Select a student..." />
                 </SelectTrigger>
                 <SelectContent>
                   {students.map(student => (
                     <SelectItem key={student.id} value={student.id}>
-                      {student.name} ({student.studentId})
+                      {student.name} ({student.studentId}) {student.faceDescriptor ? '✓' : ''}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {students.length === 0 && (
-                <p className="text-sm text-muted-foreground">All students have face registration.</p>
-              )}
             </div>
 
-            <div className="relative aspect-[4/3] bg-muted rounded-lg overflow-hidden">
+            <div className="relative aspect-video bg-muted rounded-lg overflow-hidden border">
               {!isStreaming && (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <p className="text-muted-foreground">Camera not started</p>
+                <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
+                  <p>Camera is off</p>
                 </div>
               )}
               <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
               <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
+
               {isStreaming && (
-                <div className={`absolute bottom-4 left-4 px-3 py-1 rounded text-sm text-white ${currentDetection ? 'bg-green-500' : 'bg-yellow-500'}`}>
-                  {currentDetection ? 'Face Detected' : 'No Face'}
+                <div className={`absolute bottom-4 left-4 px-3 py-1 rounded-full text-xs font-medium text-white shadow-sm transition-colors ${currentDetection ? 'bg-green-500' : 'bg-yellow-500'}`}>
+                  {currentDetection ? 'Face Detected' : 'No Face Detected'}
                 </div>
               )}
             </div>
 
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span>Samples captured</span>
-                <span className="font-medium">{capturedSamples.length}/{REQUIRED_SAMPLES}</span>
-              </div>
-              <Progress value={(capturedSamples.length / REQUIRED_SAMPLES) * 100} />
-            </div>
-
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap gap-2">
               {!modelsLoaded && (
-                <Button onClick={handleLoadModels} disabled={modelsLoading}>
-                  {modelsLoading ? 'Loading...' : 'Load Face Models'}
+                <Button onClick={handleLoadModels} disabled={modelsLoading} variant="secondary" className="w-full">
+                  {modelsLoading ? 'Loading Models...' : 'Load Face Models'}
                 </Button>
               )}
+
               {modelsLoaded && !isStreaming && (
-                <Button onClick={startCamera} disabled={!selectedStudentId}>Start Camera</Button>
+                <Button onClick={startCamera} disabled={!selectedStudentId} className="w-full">
+                  <Camera className="mr-2 h-4 w-4" /> Start Camera
+                </Button>
               )}
+
               {isStreaming && (
-                <>
-                  <Button variant="destructive" onClick={stopCamera}>Stop Camera</Button>
+                <div className="flex gap-2 w-full">
                   <Button
                     onClick={captureSample}
                     disabled={!currentDetection || isCapturing || capturedSamples.length >= REQUIRED_SAMPLES}
-                    className="bg-green-600 hover:bg-green-700"
+                    className="flex-1 bg-green-600 hover:bg-green-700"
                   >
-                    Capture Sample
+                    <Camera className="mr-2 h-4 w-4" /> Capture ({capturedSamples.length}/{REQUIRED_SAMPLES})
                   </Button>
-                </>
+                  <Button variant="destructive" onClick={stopCamera}>
+                    Stop
+                  </Button>
+                </div>
               )}
             </div>
+
+            <div className="space-y-1">
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>Progress</span>
+                <span>{Math.round((capturedSamples.length / REQUIRED_SAMPLES) * 100)}%</span>
+              </div>
+              <Progress value={(capturedSamples.length / REQUIRED_SAMPLES) * 100} className="h-2" />
+            </div>
+
           </CardContent>
         </Card>
 
-        {/* Captured Samples */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <span>Captured Samples</span>
-              {capturedSamples.length > 0 && (
-                <Button variant="ghost" size="sm" onClick={() => setCapturedSamples([])}>Reset</Button>
-              )}
-            </CardTitle>
+        {/* Samples Grid */}
+        <Card className="flex flex-col">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Captured Samples</CardTitle>
+            {capturedSamples.length > 0 && (
+              <Button variant="ghost" size="sm" onClick={() => setCapturedSamples([])}>
+                <RefreshCw className="mr-2 h-4 w-4" /> Reset
+              </Button>
+            )}
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex-1 flex flex-col justify-between">
             {capturedSamples.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <p>No samples captured yet</p>
-                <p className="text-sm mt-1">Start the camera and capture face samples</p>
+              <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground py-12">
+                <Camera className="h-12 w-12 mb-3 opacity-20" />
+                <p>No samples captured</p>
+                <p className="text-xs mt-1">Select a student and start camera</p>
               </div>
             ) : (
-              <div className="space-y-4">
-                <div className="grid grid-cols-5 gap-3">
-                  {capturedSamples.map((sample, index) => (
-                    <div key={sample.id} className="relative group">
-                      <img src={sample.thumbnail} alt={`Sample ${index + 1}`} className="w-full aspect-square object-cover rounded-lg border-2 border-green-500" />
-                      <button
-                        onClick={() => removeSample(sample.id)}
-                        className="absolute -top-2 -right-2 h-5 w-5 bg-red-500 text-white rounded-full text-xs opacity-0 group-hover:opacity-100"
-                      >
-                        ×
-                      </button>
-                      <span className="absolute bottom-1 left-1 text-xs bg-black/50 text-white px-1 rounded">{index + 1}</span>
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
+                {capturedSamples.map((sample, i) => (
+                  <div key={sample.id} className="relative group aspect-square">
+                    <img src={sample.thumbnail} className="w-full h-full object-cover rounded-md border-2 border-primary/20" alt={`sample ${i}`} />
+                    <button
+                      onClick={() => removeSample(sample.id)}
+                      className="absolute -top-2 -right-2 bg-destructive text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                    <div className="absolute bottom-1 right-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded-full">
+                      #{i + 1}
                     </div>
-                  ))}
-                  {Array.from({ length: REQUIRED_SAMPLES - capturedSamples.length }).map((_, i) => (
-                    <div key={`empty-${i}`} className="aspect-square rounded-lg border-2 border-dashed border-muted-foreground/30 flex items-center justify-center text-muted-foreground/30">
-                      {capturedSamples.length + i + 1}
-                    </div>
-                  ))}
-                </div>
-
-                <div className="p-4 rounded-lg bg-muted space-y-2">
-                  <h4 className="font-medium text-sm">Tips:</h4>
-                  <ul className="text-sm text-muted-foreground space-y-1">
-                    <li>• Look directly at the camera</li>
-                    <li>• Capture with slight head turns</li>
-                    <li>• Ensure good lighting</li>
-                  </ul>
-                </div>
-
-                {capturedSamples.length >= REQUIRED_SAMPLES && (
-                  <Button className="w-full" size="lg" onClick={saveRegistration} disabled={isSaving}>
-                    {isSaving ? 'Saving...' : 'Save Face Registration'}
-                  </Button>
-                )}
+                  </div>
+                ))}
+                {Array.from({ length: Math.max(0, REQUIRED_SAMPLES - capturedSamples.length) }).map((_, i) => (
+                  <div key={i} className="aspect-square rounded-md border-2 border-dashed flex items-center justify-center text-muted-foreground/30 text-sm">
+                    {capturedSamples.length + i + 1}
+                  </div>
+                ))}
               </div>
             )}
+
+            <div className="mt-8 space-y-4">
+              <div className="rounded-lg bg-blue-50 dark:bg-blue-900/20 p-4 text-sm text-blue-900 dark:text-blue-100">
+                <h4 className="flex items-center gap-2 font-medium mb-2">
+                  <AlertCircle className="h-4 w-4" /> Instructions
+                </h4>
+                <ul className="list-disc list-inside space-y-1 opacity-90">
+                  <li>Ensure the face is clearly visible and well-lit.</li>
+                  <li>Capture different angles (front, slight left, slight right).</li>
+                  <li>School ID cards should not be in the frame.</li>
+                </ul>
+              </div>
+
+              <Button
+                className="w-full"
+                size="lg"
+                onClick={saveRegistration}
+                disabled={capturedSamples.length < REQUIRED_SAMPLES || isSaving}
+              >
+                {isSaving ? (
+                  <>Saving Registration...</>
+                ) : (
+                  <>
+                    <Save className="mr-2 h-4 w-4" /> Complete Registration
+                  </>
+                )}
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>

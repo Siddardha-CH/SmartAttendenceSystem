@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { getAllStudents, getAttendanceByDate, Student, AttendanceRecord } from '@/lib/database';
 import { format } from 'date-fns';
+import { Users, UserCheck, UserX, Clock, ArrowRight } from 'lucide-react';
 
 export default function DashboardPage() {
   const navigate = useNavigate();
@@ -36,129 +37,127 @@ export default function DashboardPage() {
 
   if (isLoading) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <p>Loading...</p>
+      <div className="flex h-full items-center justify-center text-muted-foreground">
+        <p>Loading dashboard...</p>
       </div>
     );
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-8 p-8 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Dashboard</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+          <p className="text-muted-foreground mt-1">
             {format(new Date(), 'EEEE, MMMM d, yyyy')}
           </p>
         </div>
-        <Button onClick={() => navigate('/attendance')}>
-          Start Attendance
-        </Button>
+        <div className="flex gap-3">
+          <Button variant="outline" onClick={() => navigate('/students')}>
+            Manage Students
+          </Button>
+          <Button onClick={() => navigate('/attendance')}>
+            Start Attendance
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
-          <CardHeader className="pb-2">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
             <CardTitle className="text-sm font-medium text-muted-foreground">Total Students</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{totalStudents}</p>
-            <p className="text-xs text-muted-foreground">Registered in system</p>
+            <div className="text-2xl font-bold">{totalStudents}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {registeredFaces} faces registered
+            </p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Present Today</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Present</CardTitle>
+            <UserCheck className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-green-600">{presentToday}</p>
-            <p className="text-xs text-muted-foreground">{absentToday} absent</p>
+            <div className="text-2xl font-bold">{presentToday}</div>
+            <p className="text-xs text-muted-foreground mt-1 text-green-600">
+              Active today
+            </p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Late Arrivals</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Late</CardTitle>
+            <Clock className="h-4 w-4 text-yellow-600" />
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-yellow-600">{lateToday}</p>
-            <p className="text-xs text-muted-foreground">After threshold time</p>
+            <div className="text-2xl font-bold">{lateToday}</div>
+            <p className="text-xs text-muted-foreground mt-1 text-yellow-600">
+              Arrived after time
+            </p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Face Registered</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Absent</CardTitle>
+            <UserX className="h-4 w-4 text-red-600" />
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{registeredFaces}</p>
-            <p className="text-xs text-muted-foreground">{totalStudents - registeredFaces} pending</p>
+            <div className="text-2xl font-bold">{absentToday}</div>
+            <p className="text-xs text-muted-foreground mt-1 text-red-600">
+              Not marked yet
+            </p>
           </CardContent>
         </Card>
       </div>
 
       {/* Recent Attendance */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent Attendance</CardTitle>
+      <Card className="col-span-1 md:col-span-2">
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>Recent Activity</CardTitle>
+          <Button variant="ghost" size="sm" className="text-xs" onClick={() => navigate('/reports')}>
+            View All <ArrowRight className="ml-2 h-3 w-3" />
+          </Button>
         </CardHeader>
         <CardContent>
           {todayAttendance.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <p>No attendance marked today</p>
-              <Button variant="link" onClick={() => navigate('/attendance')}>
+            <div className="text-center py-12 border-dashed border-2 rounded-lg">
+              <p className="text-muted-foreground">No attendance records for today</p>
+              <Button variant="link" onClick={() => navigate('/attendance')} className="mt-2">
                 Start taking attendance
               </Button>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-4">
               {todayAttendance.slice(0, 5).map((record) => (
                 <div
                   key={record.id}
-                  className="flex items-center justify-between p-3 border rounded-md"
+                  className="flex items-center justify-between border-b pb-4 last:border-0 last:pb-0"
                 >
-                  <div>
-                    <p className="font-medium">{record.studentName}</p>
-                    <p className="text-sm text-muted-foreground">{record.studentId}</p>
+                  <div className="flex items-center gap-4">
+                    <div className={`w-2 h-2 rounded-full ${record.status === 'present' ? 'bg-green-500' :
+                        record.status === 'late' ? 'bg-yellow-500' : 'bg-red-500'
+                      }`} />
+                    <div>
+                      <p className="font-medium text-sm">{record.studentName}</p>
+                      <p className="text-xs text-muted-foreground">{record.studentId}</p>
+                    </div>
                   </div>
                   <div className="text-right">
-                    <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
-                      record.status === 'present' 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-yellow-100 text-yellow-800'
-                    }`}>
-                      {record.status}
-                    </span>
-                    <p className="text-xs text-muted-foreground mt-1">{record.time}</p>
+                    <p className="text-sm font-medium capitalize">{record.status}</p>
+                    <p className="text-xs text-muted-foreground">{record.time}</p>
                   </div>
                 </div>
               ))}
             </div>
           )}
-        </CardContent>
-      </Card>
-
-      {/* Quick Actions */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Quick Actions</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-wrap gap-3">
-          <Button variant="outline" onClick={() => navigate('/students')}>
-            Manage Students
-          </Button>
-          <Button variant="outline" onClick={() => navigate('/register-face')}>
-            Register Face
-          </Button>
-          <Button variant="outline" onClick={() => navigate('/reports')}>
-            View Reports
-          </Button>
-          <Button variant="outline" onClick={() => navigate('/attendance')}>
-            Take Attendance
-          </Button>
         </CardContent>
       </Card>
     </div>
