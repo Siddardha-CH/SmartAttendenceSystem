@@ -24,7 +24,7 @@ const App = () => (
       <AuthProvider>
         <Toaster />
         <Sonner />
-        <BrowserRouter basename={import.meta.env.MODE === 'production' ? '/SmartAttendenceSystem' : '/'}>
+        <BrowserRouter>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
