@@ -45,7 +45,7 @@ export function exportStudentsToExcel(
     'Student ID': student.studentId,
     'Name': student.name,
     'Email': student.email,
-    'Class': student.class,
+    'Class': student.className,
     'Section': student.section,
     'Face Registered': student.faceDescriptor ? 'Yes' : 'No',
     'Images Count': student.faceImages.length,

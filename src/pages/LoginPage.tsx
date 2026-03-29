@@ -99,9 +99,7 @@ export default function LoginPage() {
           </Button>
         </form>
 
-        <div className="text-center text-sm text-muted-foreground">
-          <p>Demo: admin@school.edu / admin123</p>
-        </div>
+
       </div>
     </div>
   );

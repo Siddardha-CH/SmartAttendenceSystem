@@ -13,6 +13,8 @@ import StudentsPage from "./pages/StudentsPage";
 import RegisterFacePage from "./pages/RegisterFacePage";
 import ReportsPage from "./pages/ReportsPage";
 import UsersPage from "./pages/UsersPage";
+import InstitutesPage from "./pages/InstitutesPage";
+import ClassesPage from "./pages/ClassesPage";
 import SettingsPage from "./pages/SettingsPage";
 import NotFound from "./pages/NotFound";
 
@@ -34,6 +36,8 @@ const App = () => (
               <Route path="/students" element={<AttendanceRoute><StudentsPage /></AttendanceRoute>} />
               <Route path="/register-face" element={<AttendanceRoute><RegisterFacePage /></AttendanceRoute>} />
               <Route path="/reports" element={<ReportsPage />} />
+              <Route path="/institutes" element={<AdminRoute><InstitutesPage /></AdminRoute>} />
+              <Route path="/classes" element={<AdminRoute><ClassesPage /></AdminRoute>} />
               <Route path="/users" element={<AdminRoute><UsersPage /></AdminRoute>} />
               <Route path="/settings" element={<AdminRoute><SettingsPage /></AdminRoute>} />
             </Route>

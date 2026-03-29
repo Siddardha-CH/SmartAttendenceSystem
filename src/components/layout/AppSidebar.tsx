@@ -3,7 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { LayoutDashboard, CalendarCheck, Users, ScanFace, FileText, UserCog, Settings, LogOut } from 'lucide-react';
+import { LayoutDashboard, CalendarCheck, Users, ScanFace, FileText, UserCog, Settings, LogOut, Building2, BookOpen } from 'lucide-react';
 
 const mainNavigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -14,6 +14,8 @@ const mainNavigation = [
 ];
 
 const adminNavigation = [
+  { name: 'Institutes', href: '/institutes', icon: Building2 },
+  { name: 'Classes', href: '/classes', icon: BookOpen },
   { name: 'Users', href: '/users', icon: UserCog },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];

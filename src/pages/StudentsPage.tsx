@@ -36,7 +36,7 @@ export default function StudentsPage() {
     studentId: '',
     name: '',
     email: '',
-    class: '',
+    className: '',
     section: '',
   });
 
@@ -61,7 +61,7 @@ export default function StudentsPage() {
       student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       student.studentId.toLowerCase().includes(searchQuery.toLowerCase()) ||
       student.email.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesClass = filterClass === 'all' || student.class === filterClass;
+    const matchesClass = filterClass === 'all' || student.className === filterClass;
     return matchesSearch && matchesClass;
   });
 
@@ -72,12 +72,12 @@ export default function StudentsPage() {
         studentId: student.studentId,
         name: student.name,
         email: student.email,
-        class: student.class,
+        className: student.className,
         section: student.section,
       });
     } else {
       setEditingStudent(null);
-      setFormData({ studentId: '', name: '', email: '', class: '', section: '' });
+      setFormData({ studentId: '', name: '', email: '', className: '', section: '' });
     }
     setIsDialogOpen(true);
   };
@@ -201,7 +201,7 @@ export default function StudentsPage() {
                       </TableCell>
                       <TableCell>
                         <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-secondary text-secondary-foreground">
-                          {student.class} - {student.section}
+                          {student.className} - {student.section}
                         </span>
                       </TableCell>
                       <TableCell>
@@ -292,7 +292,7 @@ export default function StudentsPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label htmlFor="class">Class</Label>
-                  <Select value={formData.class} onValueChange={(value) => setFormData({ ...formData, class: value })}>
+                  <Select value={formData.className} onValueChange={(value) => setFormData({ ...formData, className: value })}>
                     <SelectTrigger><SelectValue placeholder="Select class" /></SelectTrigger>
                     <SelectContent>
                       {classes.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}

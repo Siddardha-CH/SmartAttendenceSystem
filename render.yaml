@@ -1,0 +1,39 @@
+services:
+  # ── Spring Boot Backend ──────────────────────────────────────────────────────
+  - type: web
+    name: smartattend-backend
+    env: java
+    region: oregon
+    plan: free
+    buildCommand: cd backend && ./mvnw -DskipTests clean package
+    startCommand: java -Dspring.profiles.active=prod -jar backend/target/backend-0.0.1-SNAPSHOT.jar
+    envVars:
+      - key: DATABASE_URL
+        sync: false          # Fill in from your Render PostgreSQL "Internal Database URL"
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+    healthCheckPath: /api/users
+
+  # ── React / Vite Frontend (Static Site) ──────────────────────────────────────
+  - type: web
+    name: smartattend-frontend
+    env: node
+    region: oregon
+    plan: free
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html   # SPA fallback so React Router works
+    envVars:
+      - key: VITE_API_URL
+        sync: false                # Set to: https://smartattend-backend.onrender.com/api
+
+databases:
+  # Render-managed PostgreSQL (Free tier)
+  - name: smartattend-db
+    plan: free
+    region: oregon
