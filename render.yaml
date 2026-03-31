@@ -8,15 +8,23 @@ services:
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
     envVars:
-      - key: SPRING_DATASOURCE_URL
+      - key: DB_HOST
         fromDatabase:
           name: smartattend-db
-          property: jdbcConnectionString   # renders as jdbc:postgresql://...
-      - key: SPRING_DATASOURCE_USERNAME
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: smartattend-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: smartattend-db
+          property: database
+      - key: DB_USERNAME
         fromDatabase:
           name: smartattend-db
           property: user
-      - key: SPRING_DATASOURCE_PASSWORD
+      - key: DB_PASSWORD
         fromDatabase:
           name: smartattend-db
           property: password
