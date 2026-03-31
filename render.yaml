@@ -8,12 +8,18 @@ services:
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
     envVars:
-      - key: DATABASE_URL
-        sync: false          # Set to your Render PostgreSQL Internal Database URL
-      - key: DB_USERNAME
-        sync: false
-      - key: DB_PASSWORD
-        sync: false
+      - key: SPRING_DATASOURCE_URL
+        fromDatabase:
+          name: smartattend-db
+          property: jdbcConnectionString   # renders as jdbc:postgresql://...
+      - key: SPRING_DATASOURCE_USERNAME
+        fromDatabase:
+          name: smartattend-db
+          property: user
+      - key: SPRING_DATASOURCE_PASSWORD
+        fromDatabase:
+          name: smartattend-db
+          property: password
     healthCheckPath: /api/users
 
   # ── React / Vite Frontend (Docker + Nginx) ────────────────────────────────
