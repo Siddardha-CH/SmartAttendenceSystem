@@ -19,8 +19,17 @@ WORKDIR /app
 # Copy the fat JAR from the build stage
 COPY --from=builder /app/target/backend-0.0.1-SNAPSHOT.jar app.jar
 
-# Expose the Spring Boot default port
+# Expose the port (Render injects $PORT at runtime)
 EXPOSE 8080
 
-# Run with production profile
-ENTRYPOINT ["java", "-Dspring.profiles.active=prod", "-jar", "app.jar"]
+# Run with:
+#  - Container-aware memory limits (fits on Render free 512MB)
+#  - Max 75% of available RAM for heap
+#  - Faster entropy source for Linux containers
+#  - Production Spring profile
+ENTRYPOINT ["java", \
+  "-XX:+UseContainerSupport", \
+  "-XX:MaxRAMPercentage=75.0", \
+  "-Djava.security.egd=file:/dev/./urandom", \
+  "-Dspring.profiles.active=prod", \
+  "-jar", "app.jar"]
