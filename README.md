@@ -1,104 +1,150 @@
-# Smart Attendance System
+# SmartAttendence — Face Recognition Attendance System
 
-> Real-time face recognition attendance platform with 3-role RBAC, institute management, and live scanning.
+> Real-time browser-side face recognition for frictionless, fraud-proof attendance — no server image uploads, no manual roll calls.
 
-![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.x-6DB33F?logo=springboot)
-![React](https://img.shields.io/badge/React-18-61DAFB?logo=react)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791?logo=postgresql)
-![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript)
-![face-api.js](https://img.shields.io/badge/face--api.js-Powered-FF6B6B)
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.x-6DB33F?style=flat&logo=spring)
+![React](https://img.shields.io/badge/React-18-61DAFB?style=flat&logo=react)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-336791?style=flat&logo=postgresql)
+![face-api.js](https://img.shields.io/badge/face--api.js-Browser%20ML-FF6B35?style=flat)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat&logo=typescript)
 
-## What It Does
+---
 
-A full-stack attendance management platform where:
+## Features
 
-- **Admins** manage institutes, users, and class schedules
-- **Teachers** enroll student faces and run live attendance scans via webcam
-- **Viewers** can see reports and attendance records
+| Feature | Detail |
+|---|---|
+| **Browser-Side Recognition** | face-api.js runs entirely in the browser — no student photos ever leave the device |
+| **3-Role RBAC** | Admin (full control) · Teacher (enroll + scan) · Viewer (read-only reports) |
+| **Live Webcam Scanning** | Real-time face detection loop marks attendance automatically |
+| **Multi-Institute / Multi-Class** | Hierarchical: Institute → Department → Class → Student |
+| **Excel Export** | Download attendance sheet as `.xlsx` per class per date |
+| **JWT Auth** | Stateless Spring Security with BCrypt-hashed passwords |
+| **14 REST Endpoints** | Across 7 controllers covering full CRUD |
 
-Face recognition runs entirely in the **browser** via face-api.js — no server-side image processing needed.
+---
 
 ## Tech Stack
 
-| Layer | Technology |
-|---|---|
-| Backend | Spring Boot, Spring Security, JPA/Hibernate |
-| Auth | JWT, 3-role RBAC (Admin / Teacher / Viewer) |
-| Database | PostgreSQL 16 |
-| Frontend | React 18, TypeScript, Tailwind CSS |
-| Face Recognition | face-api.js (browser-side, TensorFlow.js) |
-| Build | Maven, Vite |
+**Backend** — Spring Boot 3 · Spring Security · JPA/Hibernate · PostgreSQL · JWT (jjwt)
+**Frontend** — React 18 · TypeScript · Tailwind CSS · face-api.js · Vite · Framer Motion
 
-## Architecture
+---
+
+## Project Structure
 
 ```
 SmartAttendenceSystem/
-├── backend/                    # Spring Boot (Java 17)
-│   └── src/main/java/com/smartattendance/
-│       ├── controller/         # 7 REST controllers (14+ endpoints)
-│       ├── model/              # User, Student, ClassEntity, Institute, AttendanceRecord
-│       ├── repository/         # JPA repositories
-│       └── config/             # CORS, database init
-└── src/                        # React frontend
-    ├── pages/                  # Dashboard, Attendance, Classes, Students, Institutes, Reports
-    ├── components/             # Sidebar, layout, UI components
-    └── lib/
-        └── faceRecognition.ts  # face-api.js integration
+├── backend/                    # Spring Boot API (port 8081)
+│   └── src/main/java/
+│       ├── controller/         # Auth, Student, Attendance, Class, Institute...
+│       ├── service/
+│       ├── model/              # Student, AttendanceRecord, ClassGroup, User
+│       └── config/             # SecurityConfig, JwtAuthFilter
+└── frontend/                   # React app (port 5173)
+    └── src/
+        ├── components/
+        │   ├── FaceEnrollment/
+        │   └── LiveScanner/
+        └── pages/
+            ├── Dashboard/
+            ├── Students/
+            └── Reports/
 ```
 
-## REST API (14 Endpoints)
+---
 
-| Method | Path | Role | Description |
-|---|---|---|---|
-| POST | `/api/users/login` | Public | Login, get JWT |
-| POST | `/api/users/register` | Admin | Create user |
-| GET | `/api/institutes` | Any | List institutes |
-| POST | `/api/institutes` | Admin | Create institute |
-| GET | `/api/classes` | Any | List classes |
-| POST | `/api/classes` | Admin/Teacher | Create class |
-| GET | `/api/students` | Any | List students |
-| POST | `/api/students` | Teacher | Enroll student + face |
-| POST | `/api/attendance/mark` | Teacher | Mark attendance |
-| GET | `/api/attendance` | Any | Attendance records |
-| GET | `/api/attendance/reports` | Any | Aggregate reports |
-
-## Running Locally
+## Getting Started
 
 ### Prerequisites
-- Java 17+, Maven 3.9+
-- PostgreSQL 16 on `localhost:5432`
+- Java 21+, Maven 3.9+
 - Node.js 18+
+- PostgreSQL running on port 5432
 
-### 1. Database
+### 1. Database Setup
+
 ```sql
 CREATE DATABASE smartattend;
 ```
 
 ### 2. Backend
+
 ```bash
 cd backend
 mvn spring-boot:run
-# Starts on http://localhost:8081
+# API at http://localhost:8081
+```
+
+**.env configuration:**
+```
+DB_URL=jdbc:postgresql://localhost:5432/smartattend
+DB_USERNAME=postgres
+DB_PASSWORD=your_password
 ```
 
 ### 3. Frontend
+
 ```bash
+cd frontend
 npm install
 npm run dev
-# Starts on http://localhost:5173
+# Opens at http://localhost:5173
 ```
 
-### Environment Variables (backend/.env)
-```properties
-DB_URL=jdbc:postgresql://localhost:5432/smartattend
-DB_USERNAME=postgres
-DB_PASSWORD=postgres
-```
+---
 
-## Key Features
+## How Face Recognition Works
 
-- **Real-time face enrollment** — teachers capture face descriptors via webcam
-- **Live attendance scanning** — continuous webcam feed matches enrolled faces
-- **Multi-institute support** — isolated data per institution
-- **Excel export** — attendance reports downloadable as spreadsheet
-- **Responsive UI** — works on desktop and tablet
+1. **Enrollment** — Teacher opens webcam, face-api.js extracts a 128-dimension descriptor from 5 captures, stores the averaged vector in the database as JSON.
+2. **Live Scan** — Webcam feed is processed every 300ms. Each detected face is compared against all enrolled students using Euclidean distance (threshold 0.5).
+3. **Mark Attendance** — On match, the student ID is POSTed to `/api/attendance/mark`. UI confirms with the student's name in green.
+
+No images are ever stored — only numeric vectors.
+
+---
+
+## Roles & Permissions
+
+| Action | Admin | Teacher | Viewer |
+|---|:---:|:---:|:---:|
+| Enroll students | ✅ | ✅ | ❌ |
+| Run live scanner | ✅ | ✅ | ❌ |
+| View reports | ✅ | ✅ | ✅ |
+| Export Excel | ✅ | ✅ | ✅ |
+| Manage institutes | ✅ | ❌ | ❌ |
+| Manage users | ✅ | ❌ | ❌ |
+
+---
+
+## API Reference
+
+### Auth
+
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/api/auth/register` | Register admin/teacher |
+| POST | `/api/auth/login` | Login, returns JWT |
+
+### Attendance
+
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/api/attendance/mark` | Mark student present |
+| GET | `/api/attendance/class/{classId}` | All records for a class |
+| GET | `/api/attendance/student/{studentId}` | Student's full history |
+| GET | `/api/attendance/export/{classId}` | Download Excel report |
+
+### Students
+
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/api/students` | Enroll student |
+| GET | `/api/students/class/{classId}` | List by class |
+| PUT | `/api/students/{id}/descriptor` | Update face descriptor |
+| DELETE | `/api/students/{id}` | Remove student (Admin) |
+
+---
+
+## License
+
+MIT
