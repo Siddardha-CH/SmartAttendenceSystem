@@ -12,6 +12,27 @@
 
 ---
 
+## 🚀 Live demo
+
+| | Link |
+|---|---|
+| **Web app** | **https://smartattend-frontend-q97p.onrender.com** |
+| API (health check) | https://smartattend-backend-q97p.onrender.com/api/health |
+
+**Demo login** (Teacher role: add students, register faces, take attendance, view reports):
+
+| Email | Password |
+|---|---|
+| `demo@school.edu` | `demo1234` |
+
+> ⏳ Hosted on a free tier. If the app has been idle, the **first login can take about a minute** while the server wakes up. If you see "Cannot reach the server", wait a moment and try again.
+>
+> 📷 Allow camera access when the browser asks. Face recognition runs entirely in your browser.
+>
+> This is a shared demo, so please don't enter real personal data. Demo data may be reset at any time.
+
+---
+
 ## Features
 
 | Feature | Detail |
