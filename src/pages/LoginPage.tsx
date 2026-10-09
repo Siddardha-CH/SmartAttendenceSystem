@@ -21,8 +21,6 @@ export default function LoginPage() {
 
     try {
       const success = await login(email, password);
-      // Wait a bit to show loading state for better UX
-      await new Promise(resolve => setTimeout(resolve, 500));
 
       if (success) {
         toast({
@@ -39,8 +37,8 @@ export default function LoginPage() {
       }
     } catch (error) {
       toast({
-        title: 'Error',
-        description: 'An error occurred during login.',
+        title: 'Could not sign in',
+        description: (error as Error).message,
         variant: 'destructive',
       });
     } finally {

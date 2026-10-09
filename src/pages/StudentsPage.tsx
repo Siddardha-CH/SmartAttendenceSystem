@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { getAllStudents, addStudent, updateStudent, deleteStudent, Student } from '@/lib/database';
+import { getAllStudents, addStudent, updateStudent, deleteStudent, getClasses, Student } from '@/lib/database';
 import { exportStudentsToExcel } from '@/lib/excelExport';
 import { useNavigate } from 'react-router-dom';
 import { Search, Plus, Download, MoreHorizontal, User, ScanFace } from 'lucide-react';
@@ -19,11 +19,13 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
-const classes = ['Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5', 'Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10', 'Class 11', 'Class 12'];
+// Used when no classes have been created yet on the Classes page.
+const DEFAULT_CLASSES = ['Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5', 'Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10', 'Class 11', 'Class 12'];
 const sections = ['A', 'B', 'C', 'D'];
 
 export default function StudentsPage() {
   const [students, setStudents] = useState<Student[]>([]);
+  const [classes, setClasses] = useState<string[]>(DEFAULT_CLASSES);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterClass, setFilterClass] = useState<string>('all');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -40,27 +42,35 @@ export default function StudentsPage() {
     section: '',
   });
 
-  useEffect(() => {
-    loadStudents();
-  }, []);
-
-  async function loadStudents() {
+  const loadStudents = useCallback(async () => {
     try {
       const data = await getAllStudents();
       setStudents(data);
     } catch (error) {
-      console.error('Failed to load students:', error);
-      toast({ title: 'Error', description: 'Failed to load students', variant: 'destructive' });
+      toast({ title: 'Failed to load students', description: (error as Error).message, variant: 'destructive' });
     } finally {
       setIsLoading(false);
     }
-  }
+  }, [toast]);
 
+  useEffect(() => {
+    loadStudents();
+    // Offer the classes created on the Classes page; fall back to Class 1-12.
+    getClasses()
+      .then(list => {
+        const names = Array.from(new Set(list.map(c => c.name))).sort();
+        if (names.length) setClasses(names);
+      })
+      .catch(() => { /* keep defaults */ });
+  }, [loadStudents]);
+
+  const query = searchQuery.toLowerCase();
   const filteredStudents = students.filter(student => {
+    // `?? ''` because older records may have no email etc. - .toLowerCase() on null would crash the page
     const matchesSearch =
-      student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      student.studentId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      student.email.toLowerCase().includes(searchQuery.toLowerCase());
+      (student.name ?? '').toLowerCase().includes(query) ||
+      (student.studentId ?? '').toLowerCase().includes(query) ||
+      (student.email ?? '').toLowerCase().includes(query);
     const matchesClass = filterClass === 'all' || student.className === filterClass;
     return matchesSearch && matchesClass;
   });
@@ -70,10 +80,10 @@ export default function StudentsPage() {
       setEditingStudent(student);
       setFormData({
         studentId: student.studentId,
-        name: student.name,
-        email: student.email,
-        className: student.className,
-        section: student.section,
+        name: student.name ?? '',
+        email: student.email ?? '',
+        className: student.className ?? '',
+        section: student.section ?? '',
       });
     } else {
       setEditingStudent(null);
@@ -100,7 +110,7 @@ export default function StudentsPage() {
       await loadStudents();
       setIsDialogOpen(false);
     } catch (error) {
-      toast({ title: 'Error', description: 'Failed to save student.', variant: 'destructive' });
+      toast({ title: 'Failed to save student', description: (error as Error).message, variant: 'destructive' });
     }
   };
 
@@ -111,7 +121,7 @@ export default function StudentsPage() {
       await loadStudents();
       toast({ title: 'Student deleted successfully' });
     } catch (error) {
-      toast({ title: 'Error', description: 'Failed to delete student.', variant: 'destructive' });
+      toast({ title: 'Failed to delete student', description: (error as Error).message, variant: 'destructive' });
     }
   };
 
@@ -125,7 +135,7 @@ export default function StudentsPage() {
   }
 
   return (
-    <div className="space-y-8 p-8 max-w-7xl mx-auto">
+    <div className="space-y-8 p-4 md:p-8 max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
@@ -201,11 +211,11 @@ export default function StudentsPage() {
                       </TableCell>
                       <TableCell>
                         <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-secondary text-secondary-foreground">
-                          {student.className} - {student.section}
+                          {student.className || '-'}{student.section ? ` - ${student.section}` : ''}
                         </span>
                       </TableCell>
                       <TableCell>
-                        {student.faceDescriptor ? (
+                        {student.faceDescriptor?.length ? (
                           <div className="flex items-center text-green-600 text-xs font-medium">
                             <ScanFace className="mr-1 h-3 w-3" />
                             Registered

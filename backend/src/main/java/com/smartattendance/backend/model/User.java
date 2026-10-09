@@ -1,5 +1,6 @@
 package com.smartattendance.backend.model;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -17,6 +18,9 @@ public class User {
     private String email;
     
     private String name;
+    // WRITE_ONLY: the password can be sent TO the API (create/update user) but is never included
+    // in any response. It is stored as a BCrypt hash, never as plain text.
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String password;
     private String role; // admin, teacher, viewer
     private String status; // active, disabled

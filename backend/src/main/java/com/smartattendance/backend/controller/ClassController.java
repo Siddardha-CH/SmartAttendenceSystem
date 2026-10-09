@@ -12,7 +12,6 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/classes")
-@CrossOrigin(origins = "*")
 public class ClassController {
 
     @Autowired

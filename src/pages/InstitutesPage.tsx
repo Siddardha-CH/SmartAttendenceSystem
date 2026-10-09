@@ -39,7 +39,7 @@ export default function InstitutesPage() {
       const data = await getInstitutes();
       setInstitutes(data);
     } catch (error) {
-      toast({ title: 'Error loading institutes', variant: 'destructive' });
+      toast({ title: 'Error loading institutes', description: (error as Error).message, variant: 'destructive' });
     } finally {
       setIsLoading(false);
     }
@@ -73,8 +73,8 @@ export default function InstitutesPage() {
       }
       setIsDialogOpen(false);
       loadInstitutes();
-    } catch (error: any) {
-      toast({ title: error.message || 'Failed to save institute', variant: 'destructive' });
+    } catch (error) {
+      toast({ title: (error as Error).message || 'Failed to save institute', variant: 'destructive' });
     }
   };
 
@@ -87,7 +87,7 @@ export default function InstitutesPage() {
       setSelectedInstitute(null);
       loadInstitutes();
     } catch (error) {
-      toast({ title: 'Failed to delete institute', variant: 'destructive' });
+      toast({ title: 'Failed to delete institute', description: (error as Error).message, variant: 'destructive' });
     }
   };
 
@@ -96,7 +96,7 @@ export default function InstitutesPage() {
   }
 
   return (
-    <div className="space-y-8 p-8 max-w-7xl mx-auto">
+    <div className="space-y-8 p-4 md:p-8 max-w-7xl mx-auto">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Institutes</h1>

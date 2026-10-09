@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,18 +18,25 @@ export default function ReportsPage() {
 
   useEffect(() => {
     async function loadData() {
-      const [attendanceData, studentsData] = await Promise.all([
-        getAllAttendance(),
-        getAllStudents(),
-      ]);
-      setAttendance(attendanceData);
-      setStudents(studentsData);
-      setIsLoading(false);
+      try {
+        const [attendanceData, studentsData] = await Promise.all([
+          getAllAttendance(),
+          getAllStudents(),
+        ]);
+        setAttendance(attendanceData);
+        setStudents(studentsData);
+      } catch (error) {
+        toast({ title: 'Could not load reports', description: (error as Error).message, variant: 'destructive' });
+      } finally {
+        setIsLoading(false);
+      }
     }
     loadData();
-  }, []);
+  }, [toast]);
 
-  const filteredAttendance = attendance.filter(r => r.date === dateFilter);
+  const filteredAttendance = attendance
+    .filter(r => r.date === dateFilter)
+    .sort((a, b) => a.time.localeCompare(b.time));
   const presentCount = filteredAttendance.filter(r => r.status === 'present').length;
   const lateCount = filteredAttendance.filter(r => r.status === 'late').length;
   const absentCount = students.length - presentCount - lateCount;
@@ -49,7 +56,7 @@ export default function ReportsPage() {
   }
 
   return (
-    <div className="space-y-8 p-8 max-w-7xl mx-auto">
+    <div className="space-y-8 p-4 md:p-8 max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
@@ -152,11 +159,11 @@ export default function ReportsPage() {
                       <TableCell className="font-medium">{record.studentName}</TableCell>
                       <TableCell>{record.time}</TableCell>
                       <TableCell>
-                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${record.status === 'present'
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium capitalize ${record.status === 'present'
                             ? 'bg-green-100 text-green-700'
-                            : 'bg-yellow-100 text-yellow-700'
+                            : record.status === 'late' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'
                           }`}>
-                          {record.status === 'present' ? 'Present' : 'Late'}
+                          {record.status}
                         </span>
                       </TableCell>
                       <TableCell>{record.confidence ? `${Math.round(record.confidence)}%` : '-'}</TableCell>

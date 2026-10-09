@@ -44,7 +44,7 @@ export default function UsersPage() {
       const data = await getAllUsers();
       setUsers(data);
     } catch (error) {
-      toast({ title: 'Error loading users', variant: 'destructive' });
+      toast({ title: 'Error loading users', description: (error as Error).message, variant: 'destructive' });
     } finally {
       setIsLoading(false);
     }
@@ -84,8 +84,8 @@ export default function UsersPage() {
       }
       setIsDialogOpen(false);
       loadUsers();
-    } catch (error: any) {
-      toast({ title: error.message || 'Failed to save user', variant: 'destructive' });
+    } catch (error) {
+      toast({ title: (error as Error).message || 'Failed to save user', variant: 'destructive' });
     }
   };
 
@@ -95,7 +95,7 @@ export default function UsersPage() {
       toast({ title: `User ${user.status === 'active' ? 'disabled' : 'enabled'}` });
       loadUsers();
     } catch (error) {
-      toast({ title: 'Failed to update status', variant: 'destructive' });
+      toast({ title: 'Failed to update status', description: (error as Error).message, variant: 'destructive' });
     }
   };
 
@@ -112,7 +112,7 @@ export default function UsersPage() {
       setSelectedUser(null);
       loadUsers();
     } catch (error) {
-      toast({ title: 'Failed to delete user', variant: 'destructive' });
+      toast({ title: 'Failed to delete user', description: (error as Error).message, variant: 'destructive' });
     }
   };
 
@@ -121,7 +121,7 @@ export default function UsersPage() {
   }
 
   return (
-    <div className="space-y-8 p-8 max-w-7xl mx-auto">
+    <div className="space-y-8 p-4 md:p-8 max-w-7xl mx-auto">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Users</h1>

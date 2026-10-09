@@ -1,5 +1,15 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { User, authenticateUser, getUserPreferences, saveUserPreferences, UserPreferences } from '@/lib/database';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import {
+  User,
+  UserPreferences,
+  authenticateUser,
+  getCurrentUser,
+  getAuthToken,
+  setAuthToken,
+  setUnauthorizedHandler,
+  getUserPreferences,
+  saveUserPreferences,
+} from '@/lib/database';
 
 interface AuthContextType {
   user: User | null;
@@ -19,82 +29,69 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+function applyTheme(theme: 'light' | 'dark' | 'system') {
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const dark = theme === 'dark' || (theme === 'system' && prefersDark);
+  document.documentElement.classList.toggle('dark', dark);
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [preferences, setPreferences] = useState<UserPreferences | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    const loadUser = async () => {
-      const savedUser = localStorage.getItem('currentUser');
-      if (savedUser) {
-        try {
-          const parsedUser = JSON.parse(savedUser);
-          setUser(parsedUser);
-          
-          // Load user preferences
-          const prefs = await getUserPreferences(parsedUser.id);
-          if (prefs) {
-            setPreferences(prefs);
-            applyTheme(prefs.theme);
-          }
-        } catch {
-          localStorage.removeItem('currentUser');
-        }
-      }
-      setIsLoading(false);
-    };
-    loadUser();
+  const logout = useCallback(() => {
+    setAuthToken(null);
+    setUser(null);
+    setPreferences(null);
+    document.documentElement.classList.remove('dark');
   }, []);
 
-  const applyTheme = (theme: 'light' | 'dark' | 'system') => {
-    const root = document.documentElement;
-    if (theme === 'dark') {
-      root.classList.add('dark');
-    } else if (theme === 'light') {
-      root.classList.remove('dark');
-    } else {
-      // System preference
-      if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-        root.classList.add('dark');
-      } else {
-        root.classList.remove('dark');
-      }
-    }
-  };
-
-  const login = async (email: string, password: string): Promise<boolean> => {
-    const authenticatedUser = await authenticateUser(email, password);
-    if (authenticatedUser) {
-      setUser(authenticatedUser);
-      localStorage.setItem('currentUser', JSON.stringify(authenticatedUser));
-      
-      // Load preferences
-      const prefs = await getUserPreferences(authenticatedUser.id);
+  const loadPreferences = useCallback(async (userId: string) => {
+    try {
+      const prefs = await getUserPreferences(userId);
       if (prefs) {
         setPreferences(prefs);
         applyTheme(prefs.theme);
       }
-      
-      return true;
+    } catch {
+      // Preferences are cosmetic - never block the app on them.
     }
-    return false;
-  };
+  }, []);
 
-  const logout = () => {
-    setUser(null);
-    setPreferences(null);
-    localStorage.removeItem('currentUser');
-    document.documentElement.classList.remove('dark');
+  // On page load: if we have a saved token, ask the server who it belongs to.
+  // The server is the source of truth, so a tampered or expired token simply logs the user out.
+  useEffect(() => {
+    setUnauthorizedHandler(logout);
+    (async () => {
+      if (getAuthToken()) {
+        try {
+          const me = await getCurrentUser();
+          setUser(me);
+          await loadPreferences(me.id);
+        } catch {
+          logout();
+        }
+      }
+      setIsLoading(false);
+    })();
+    return () => setUnauthorizedHandler(null);
+  }, [logout, loadPreferences]);
+
+  const login = async (email: string, password: string): Promise<boolean> => {
+    const result = await authenticateUser(email, password);
+    if (!result) return false;
+    setAuthToken(result.token);
+    setUser(result.user);
+    await loadPreferences(result.user.id);
+    return true;
   };
 
   const updatePreferences = async (prefs: Partial<UserPreferences>) => {
     if (!user) return;
     const updated = await saveUserPreferences(user.id, prefs);
     setPreferences(updated);
-    if (prefs.theme) {
-      applyTheme(prefs.theme);
-    }
+    if (prefs.theme) applyTheme(prefs.theme);
   };
 
   const isAdmin = user?.role === 'admin';
@@ -114,7 +111,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         canManageUsers: isAdmin,
         canManageSettings: isAdmin,
         canTakeAttendance: isAdmin || isTeacher,
-        canViewReports: true, // All roles can view reports
+        canViewReports: true, // all roles can view reports
         preferences,
         updatePreferences,
       }}
@@ -124,6 +121,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {

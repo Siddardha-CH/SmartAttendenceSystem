@@ -1,15 +1,15 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
-import { loadFaceModels, detectSingleFace, areModelsLoaded, canvasToBase64, FaceDetection } from '@/lib/faceRecognition';
-import { getAllStudents, updateStudent, Student } from '@/lib/database';
+import { loadFaceModels, detectSingleFace, areModelsLoaded, canvasToBase64, averageDescriptors, checkFaceQuality, openCamera, FaceDetection } from '@/lib/faceRecognition';
+import { getAllStudents, getSettings, updateStudent, Student, Settings } from '@/lib/database';
 import { Camera, Save, RefreshCw, Trash2, CheckCircle2, AlertCircle } from 'lucide-react';
 
-const REQUIRED_SAMPLES = 5;
+const DEFAULT_REQUIRED_SAMPLES = 5;
 
 interface CapturedSample {
   id: string;
@@ -33,19 +33,26 @@ export default function RegisterFacePage() {
   const [isCapturing, setIsCapturing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [currentDetection, setCurrentDetection] = useState<FaceDetection | null>(null);
+  const [settings, setSettings] = useState<Settings | null>(null);
   const { toast } = useToast();
 
+  const REQUIRED_SAMPLES = settings?.requiredFaceSamples || DEFAULT_REQUIRED_SAMPLES;
+  const minConfidence = settings?.faceMatchTolerance ?? 0.5;
+
   useEffect(() => {
-    loadStudents();
+    (async () => {
+      try {
+        const [studentsData, settingsData] = await Promise.all([getAllStudents(), getSettings()]);
+        setStudents(studentsData); // re-registering an already registered student is allowed
+        setSettings(settingsData);
+      } catch (error) {
+        toast({ title: 'Could not load data', description: (error as Error).message, variant: 'destructive' });
+      }
+    })();
     const studentParam = searchParams.get('student');
     if (studentParam) setSelectedStudentId(studentParam);
     if (areModelsLoaded()) setModelsLoaded(true);
-  }, [searchParams]);
-
-  async function loadStudents() {
-    const data = await getAllStudents();
-    setStudents(data); // Allow re-registering too, or filter if needed
-  }
+  }, [searchParams, toast]);
 
   const selectedStudent = students.find(s => s.id === selectedStudentId);
 
@@ -64,21 +71,16 @@ export default function RegisterFacePage() {
 
   const startCamera = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: 640, height: 480, facingMode: 'user' },
-        audio: false,
-      });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        streamRef.current = stream;
-        setIsStreaming(true);
-      }
-    } catch (error) {
-      toast({ title: 'Camera Error', variant: 'destructive' });
+      const stream = await openCamera(settings);
+      streamRef.current = stream;
+      if (videoRef.current) videoRef.current.srcObject = stream;
+      setIsStreaming(true);
+    } catch {
+      toast({ title: 'Camera Error', description: 'Could not access the camera. Check browser permissions (HTTPS is required).', variant: 'destructive' });
     }
   };
 
-  const stopCamera = () => {
+  const stopCamera = useCallback(() => {
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
@@ -86,12 +88,12 @@ export default function RegisterFacePage() {
     if (videoRef.current) videoRef.current.srcObject = null;
     setIsStreaming(false);
     setCurrentDetection(null);
-  };
+  }, []);
 
   const detectFaceLoop = useCallback(async () => {
     if (!videoRef.current || !modelsLoaded || !isStreaming) return;
     try {
-      const detection = await detectSingleFace(videoRef.current);
+      const detection = await detectSingleFace(videoRef.current, minConfidence);
       setCurrentDetection(detection);
 
       const canvas = canvasRef.current;
@@ -103,7 +105,8 @@ export default function RegisterFacePage() {
         if (ctx) {
           ctx.clearRect(0, 0, canvas.width, canvas.height);
           if (detection) {
-            const { x, y, width, height } = detection.box;
+            const { y, width, height } = detection.box;
+            const x = settings?.mirrorCamera ? canvas.width - detection.box.x - width : detection.box.x;
             ctx.strokeStyle = '#22c55e';
             ctx.lineWidth = 3;
             ctx.strokeRect(x, y, width, height);
@@ -113,16 +116,30 @@ export default function RegisterFacePage() {
     } catch (error) {
       console.error('Detection error:', error);
     }
-  }, [modelsLoaded, isStreaming]);
+  }, [modelsLoaded, isStreaming, minConfidence, settings?.mirrorCamera]);
 
+  // Live face box: detect, then wait a little, then detect again (never two detections at once).
   useEffect(() => {
     if (!isStreaming || !modelsLoaded) return;
-    const interval = setInterval(detectFaceLoop, 200);
-    return () => clearInterval(interval);
+    let cancelled = false;
+    let timer: number | undefined;
+    const run = async () => {
+      await detectFaceLoop();
+      if (!cancelled) timer = window.setTimeout(run, 200);
+    };
+    run();
+    return () => { cancelled = true; clearTimeout(timer); };
   }, [isStreaming, modelsLoaded, detectFaceLoop]);
 
   const captureSample = async () => {
     if (!videoRef.current || !currentDetection || capturedSamples.length >= REQUIRED_SAMPLES) return;
+    if (settings?.enableFaceQualityCheck) {
+      const problem = checkFaceQuality(currentDetection, videoRef.current.videoWidth);
+      if (problem) {
+        toast({ title: 'Sample rejected', description: problem, variant: 'destructive' });
+        return;
+      }
+    }
     setIsCapturing(true);
     try {
       const canvas = document.createElement('canvas');
@@ -161,28 +178,27 @@ export default function RegisterFacePage() {
     if (!selectedStudent || capturedSamples.length < REQUIRED_SAMPLES) return;
     setIsSaving(true);
     try {
-      const avgDescriptor = new Float32Array(128);
-      capturedSamples.forEach(s => s.descriptor.forEach((v, i) => avgDescriptor[i] += v / capturedSamples.length));
+      // Average all samples into one descriptor. Must be a plain number[] - a Float32Array
+      // turns into {"0":..,"1":..} in JSON and the server would reject it.
       await updateStudent(selectedStudent.id, {
-        faceDescriptor: avgDescriptor,
+        faceDescriptor: averageDescriptors(capturedSamples.map(s => s.descriptor)),
         faceImages: capturedSamples.map(s => s.thumbnail),
       });
       toast({ title: 'Registration Successful', description: `${selectedStudent.name} can now use face attendance.` });
       stopCamera();
       navigate('/students');
     } catch (error) {
-      toast({ title: 'Error', description: 'Failed to save registration.', variant: 'destructive' });
+      toast({ title: 'Failed to save registration', description: (error as Error).message, variant: 'destructive' });
     } finally {
       setIsSaving(false);
     }
   };
 
-  useEffect(() => {
-    return () => { stopCamera(); };
-  }, []);
+  // Release the camera when leaving the page.
+  useEffect(() => stopCamera, [stopCamera]);
 
   return (
-    <div className="space-y-8 p-8 max-w-7xl mx-auto">
+    <div className="space-y-8 p-4 md:p-8 max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
@@ -220,8 +236,9 @@ export default function RegisterFacePage() {
                   <p>Camera is off</p>
                 </div>
               )}
-              <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
-              <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
+              {/* object-contain on BOTH video and canvas keeps the face box aligned with the picture */}
+              <video ref={videoRef} autoPlay playsInline muted className={`w-full h-full object-contain ${settings?.mirrorCamera ? 'scale-x-[-1]' : ''}`} />
+              <canvas ref={canvasRef} className="absolute inset-0 w-full h-full object-contain pointer-events-none" />
 
               {isStreaming && (
                 <div className={`absolute bottom-4 left-4 px-3 py-1 rounded-full text-xs font-medium text-white shadow-sm transition-colors ${currentDetection ? 'bg-green-500' : 'bg-yellow-500'}`}>

@@ -1,12 +1,14 @@
-# SmartAttendence — Face Recognition Attendance System
+# SmartAttend — Face Recognition Attendance System
 
-> Real-time browser-side face recognition for frictionless, fraud-proof attendance — no server image uploads, no manual roll calls.
+> Take class attendance by pointing a webcam at the room. Faces are recognised **in the browser**; the server only stores 128-number face "fingerprints", small registration thumbnails, and attendance records.
 
-![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.x-6DB33F?style=flat&logo=spring)
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5-6DB33F?style=flat&logo=spring)
 ![React](https://img.shields.io/badge/React-18-61DAFB?style=flat&logo=react)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-336791?style=flat&logo=postgresql)
 ![face-api.js](https://img.shields.io/badge/face--api.js-Browser%20ML-FF6B35?style=flat)
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat&logo=typescript)
+
+📘 **New to the code? Read [PROJECT_GUIDE.md](PROJECT_GUIDE.md)**: a complete walkthrough of every part of the project.
 
 ---
 
@@ -14,134 +16,166 @@
 
 | Feature | Detail |
 |---|---|
-| **Browser-Side Recognition** | face-api.js runs entirely in the browser — no student photos ever leave the device |
-| **3-Role RBAC** | Admin (full control) · Teacher (enroll + scan) · Viewer (read-only reports) |
-| **Live Webcam Scanning** | Real-time face detection loop marks attendance automatically |
-| **Multi-Institute / Multi-Class** | Hierarchical: Institute → Department → Class → Student |
-| **Excel Export** | Download attendance sheet as `.xlsx` per class per date |
-| **JWT Auth** | Stateless Spring Security with BCrypt-hashed passwords |
-| **14 REST Endpoints** | Across 7 controllers covering full CRUD |
+| **Browser-side recognition** | face-api.js (TensorFlow.js) runs on the user's device. Video never leaves the browser. |
+| **Auto attendance** | Live webcam scan marks each recognised student *present* or *late* (after a configurable time) |
+| **Manual override** | Teachers can mark a student by hand (can be disabled in Settings) |
+| **3 roles** | Admin (everything) · Teacher (students, face registration, attendance) · Viewer (read-only) |
+| **Secure login** | BCrypt-hashed passwords, HMAC-signed session tokens, role checks on every API call |
+| **Reports & export** | Daily report and full history as `.xlsx`, full JSON backup |
+| **Institutes & classes** | Admins define institutes and classes; classes appear in the student form |
+| **One-click deploy** | `render.yaml` deploys database + API + website on Render's free tier |
 
 ---
 
-## Tech Stack
+## Tech stack
 
-**Backend** — Spring Boot 3 · Spring Security · JPA/Hibernate · PostgreSQL · JWT (jjwt)
-**Frontend** — React 18 · TypeScript · Tailwind CSS · face-api.js · Vite · Framer Motion
+**Backend:** Java 17 · Spring Boot 3.5 (Web, Data JPA, Validation) · Hibernate · PostgreSQL · spring-security-crypto (BCrypt)
+**Frontend:** React 18 · TypeScript · Vite · Tailwind CSS · shadcn/ui (Radix) · face-api.js · SheetJS (xlsx)
 
 ---
 
-## Project Structure
+## Project structure
 
 ```
 SmartAttendenceSystem/
-├── backend/                    # Spring Boot API (port 8081)
-│   └── src/main/java/
-│       ├── controller/         # Auth, Student, Attendance, Class, Institute...
-│       ├── service/
-│       ├── model/              # Student, AttendanceRecord, ClassGroup, User
-│       └── config/             # SecurityConfig, JwtAuthFilter
-└── frontend/                   # React app (port 5173)
-    └── src/
-        ├── components/
-        │   ├── FaceEnrollment/
-        │   └── LiveScanner/
-        └── pages/
-            ├── Dashboard/
-            ├── Students/
-            └── Reports/
+├── src/                         # React frontend (Vite)
+│   ├── lib/database.ts          #   API client: every HTTP call to the backend
+│   ├── lib/faceRecognition.ts   #   face-api.js wrapper: detect, describe, match
+│   ├── contexts/AuthContext.tsx #   login state, token, roles
+│   ├── pages/                   #   one file per screen
+│   └── components/              #   layout, route guards, shadcn/ui widgets
+├── backend/                     # Spring Boot API
+│   └── src/main/java/com/smartattendance/backend/
+│       ├── controller/          #   REST endpoints (/api/...)
+│       ├── model/               #   JPA entities = database tables
+│       ├── repository/          #   database queries (Spring Data)
+│       ├── security/            #   token signing + permission checks
+│       └── config/              #   CORS, startup data, error handling
+├── render.yaml                  # Render Blueprint (DB + API + static site)
+├── Dockerfile, nginx.conf       # optional: frontend as a Docker image
+└── .github/workflows/ci.yml     # tests + build on every push
 ```
 
 ---
 
-## Getting Started
+## Run it locally
 
-### Prerequisites
-- Java 21+, Maven 3.9+
-- Node.js 18+
-- PostgreSQL running on port 5432
+**Prerequisites:** Java 17+, Maven 3.9+ (or use `backend/mvnw`), Node.js 18+, PostgreSQL.
 
-### 1. Database Setup
+### 1. Database
 
 ```sql
 CREATE DATABASE smartattend;
 ```
 
-### 2. Backend
+Tables are created automatically on first start.
+
+### 2. Backend (port 8081)
 
 ```bash
 cd backend
+cp .env.example .env      # then put your PostgreSQL password in .env
 mvn spring-boot:run
-# API at http://localhost:8081
 ```
 
-**.env configuration:**
-```
-DB_URL=jdbc:postgresql://localhost:5432/smartattend
-DB_USERNAME=postgres
-DB_PASSWORD=your_password
-```
+Check it: <http://localhost:8081/api/health> → `{"status":"UP"}`
 
-### 3. Frontend
+### 3. Frontend (port 8080)
 
 ```bash
-cd frontend
 npm install
 npm run dev
-# Opens at http://localhost:5173
+```
+
+Open <http://localhost:8080> and sign in with **admin@school.edu / admin123**. Change this password on the Users page.
+
+> The camera only works on `localhost` or over HTTPS. That's a browser rule, not an app limitation.
+
+### Tests
+
+```bash
+cd backend && mvn test        # 11 API tests on an in-memory database
+npx tsc -p tsconfig.app.json --noEmit && npm run lint && npm run build
 ```
 
 ---
 
-## How Face Recognition Works
+## Deploying (Render, free tier)
 
-1. **Enrollment** — Teacher opens webcam, face-api.js extracts a 128-dimension descriptor from 5 captures, stores the averaged vector in the database as JSON.
-2. **Live Scan** — Webcam feed is processed every 300ms. Each detected face is compared against all enrolled students using Euclidean distance (threshold 0.5).
-3. **Mark Attendance** — On match, the student ID is POSTed to `/api/attendance/mark`. UI confirms with the student's name in green.
+1. Push this repository to GitHub.
+2. On [render.com](https://render.com): **New → Blueprint**, pick the repo. Render reads `render.yaml` and creates:
+   - `smartattend-db`: PostgreSQL
+   - `smartattend-backend`: the API (Docker)
+   - `smartattend-frontend`: the website (static site)
+3. When asked, enter **ADMIN_PASSWORD** (the password for `admin@school.edu`). Leave **VITE_API_URL** blank for now.
+4. Wait for the backend to go live, then copy its URL (e.g. `https://smartattend-backend-xxxx.onrender.com`).
+5. Open **smartattend-frontend → Environment**, set `VITE_API_URL` to that URL, then run **Manual Deploy → Clear build cache & deploy**. (Vite bakes the URL into the JavaScript at build time, so a rebuild is required.)
+6. Optional hardening: on the backend, set `CORS_ALLOWED_ORIGINS` to your frontend URL.
 
-No images are ever stored — only numeric vectors.
+**Free-tier notes:** the backend sleeps after 15 minutes idle, so the first request after that takes ~1 minute. Render deletes free PostgreSQL databases after 30 days unless you upgrade. Use *Settings → Export All Data* for backups.
+
+### Environment variables
+
+| Variable | Where | Purpose |
+|---|---|---|
+| `DB_HOST` `DB_PORT` `DB_NAME` `DB_USERNAME` `DB_PASSWORD` | backend (prod) | Set automatically by Render from the database |
+| `DB_URL` | backend (local) | Full JDBC URL for local development |
+| `APP_TOKEN_SECRET` | backend | Signs login tokens. Render generates it. If unset, users are logged out on restart. |
+| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | backend | First admin account (only used when there are no users yet) |
+| `CORS_ALLOWED_ORIGINS` | backend | Comma-separated allowed frontend origins (default `*`) |
+| `VITE_API_URL` | frontend (build time) | Backend URL; `/api` is appended if missing |
 
 ---
 
-## Roles & Permissions
+## How face recognition works
+
+1. **Registration:** the camera captures N photos (N = *Required Face Samples*, default 5). For each, face-api.js finds the face and computes a **descriptor**: 128 numbers summarising the face. The samples are averaged into one descriptor and saved with the student.
+2. **Live scan:** every *Scan Interval* (default 3 s), every face in the frame gets a descriptor. It is compared to every registered student using **Euclidean distance**. The closest student under the *Recognition Threshold* (default 0.6) is a match.
+3. **Marking:** a match is sent to `POST /api/attendance` with status *late* if the time is past the *Late Arrival Threshold*. The server refuses a second record for the same student on the same day.
+
+---
+
+## Roles & permissions
+
+Enforced by the server (`AuthInterceptor`), not only hidden in the UI.
 
 | Action | Admin | Teacher | Viewer |
 |---|:---:|:---:|:---:|
-| Enroll students | ✅ | ✅ | ❌ |
-| Run live scanner | ✅ | ✅ | ❌ |
-| View reports | ✅ | ✅ | ✅ |
-| Export Excel | ✅ | ✅ | ✅ |
-| Manage institutes | ✅ | ❌ | ❌ |
-| Manage users | ✅ | ❌ | ❌ |
+| View dashboard, students, reports | ✅ | ✅ | ✅ |
+| Add/edit students, register faces | ✅ | ✅ | ❌ |
+| Take attendance (auto + manual) | ✅ | ✅ | ❌ |
+| Institutes, classes, settings | ✅ | ❌ | ❌ |
+| Users, clear history, factory reset | ✅ | ❌ | ❌ |
 
 ---
 
-## API Reference
+## API reference
 
-### Auth
+All endpoints are under `/api` and require `Authorization: Bearer <token>` except the two marked public.
 
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/api/auth/register` | Register admin/teacher |
-| POST | `/api/auth/login` | Login, returns JWT |
+| Method | Endpoint | Who | Description |
+|---|---|---|---|
+| GET | `/health` | public | Liveness check |
+| POST | `/users/login` | public | `{email,password}` → `{token,user}` |
+| GET | `/users/me` | any | The logged-in user |
+| GET/POST | `/users` | admin | List / create users |
+| GET/PUT/DELETE | `/users/{id}` | admin | Read / update / delete a user |
+| GET | `/students` | any | All students (without images) |
+| GET | `/students/{id}` | any | One student, with face images |
+| POST | `/students` | teacher+ | Create student |
+| PUT | `/students/{id}` | teacher+ | Partial update (also saves face registration) |
+| DELETE | `/students/{id}` | teacher+ | Delete student |
+| GET | `/attendance` | any | All records |
+| GET | `/attendance/date/{yyyy-MM-dd}` | any | Records for one day |
+| POST | `/attendance` | teacher+ | Mark attendance (409 if already marked) |
+| POST | `/attendance/check-duplicate` | teacher+ | `{studentId,date}` → `{exists}` |
+| DELETE | `/attendance/clear-history` | admin | Delete all attendance |
+| GET / PUT | `/settings` | any / admin | Read / partially update settings |
+| GET / PUT | `/preferences/{userId}` | self or admin | Theme preferences |
+| GET/POST, PUT/DELETE `/{id}` | `/institutes`, `/classes` | any (read) / admin | Institutes & classes |
+| POST | `/admin/reset` | admin | Factory reset (keeps user accounts) |
 
-### Attendance
-
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/api/attendance/mark` | Mark student present |
-| GET | `/api/attendance/class/{classId}` | All records for a class |
-| GET | `/api/attendance/student/{studentId}` | Student's full history |
-| GET | `/api/attendance/export/{classId}` | Download Excel report |
-
-### Students
-
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/api/students` | Enroll student |
-| GET | `/api/students/class/{classId}` | List by class |
-| PUT | `/api/students/{id}/descriptor` | Update face descriptor |
-| DELETE | `/api/students/{id}` | Remove student (Admin) |
+Errors come back as `{"error": "message"}` with a matching HTTP status (400, 401, 403, 404, 409).
 
 ---
 

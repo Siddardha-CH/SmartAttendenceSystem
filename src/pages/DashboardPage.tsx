@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
@@ -32,8 +32,8 @@ export default function DashboardPage() {
   const totalStudents = students.length;
   const presentToday = todayAttendance.filter(a => a.status === 'present').length;
   const lateToday = todayAttendance.filter(a => a.status === 'late').length;
-  const absentToday = totalStudents - presentToday - lateToday;
-  const registeredFaces = students.filter(s => s.faceDescriptor).length;
+  const absentToday = Math.max(0, totalStudents - presentToday - lateToday);
+  const registeredFaces = students.filter(s => s.faceDescriptor?.length).length;
 
   if (isLoading) {
     return (
@@ -44,7 +44,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-8 p-8 max-w-7xl mx-auto">
+    <div className="space-y-8 p-4 md:p-8 max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
@@ -136,7 +136,7 @@ export default function DashboardPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              {todayAttendance.slice(0, 5).map((record) => (
+              {todayAttendance.slice().reverse().slice(0, 5).map((record) => (
                 <div
                   key={record.id}
                   className="flex items-center justify-between border-b pb-4 last:border-0 last:pb-0"

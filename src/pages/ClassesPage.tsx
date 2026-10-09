@@ -45,7 +45,7 @@ export default function ClassesPage() {
       setClasses(classesData);
       setInstitutes(institutesData);
     } catch (error) {
-      toast({ title: 'Error loading data', variant: 'destructive' });
+      toast({ title: 'Error loading data', description: (error as Error).message, variant: 'destructive' });
     } finally {
       setIsLoading(false);
     }
@@ -84,8 +84,8 @@ export default function ClassesPage() {
       }
       setIsDialogOpen(false);
       loadData();
-    } catch (error: any) {
-      toast({ title: error.message || 'Failed to save class', variant: 'destructive' });
+    } catch (error) {
+      toast({ title: (error as Error).message || 'Failed to save class', variant: 'destructive' });
     }
   };
 
@@ -98,7 +98,7 @@ export default function ClassesPage() {
       setSelectedClass(null);
       loadData();
     } catch (error) {
-      toast({ title: 'Failed to delete class', variant: 'destructive' });
+      toast({ title: 'Failed to delete class', description: (error as Error).message, variant: 'destructive' });
     }
   };
 
@@ -107,7 +107,7 @@ export default function ClassesPage() {
   }
 
   return (
-    <div className="space-y-8 p-8 max-w-7xl mx-auto">
+    <div className="space-y-8 p-4 md:p-8 max-w-7xl mx-auto">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Classes</h1>

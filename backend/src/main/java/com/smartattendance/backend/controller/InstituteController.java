@@ -1,6 +1,7 @@
 package com.smartattendance.backend.controller;
 
 import com.smartattendance.backend.model.Institute;
+import com.smartattendance.backend.repository.ClassRepository;
 import com.smartattendance.backend.repository.InstituteRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -12,11 +13,13 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/institutes")
-@CrossOrigin(origins = "*")
 public class InstituteController {
 
     @Autowired
     private InstituteRepository repository;
+
+    @Autowired
+    private ClassRepository classRepository;
 
     @GetMapping
     public List<Institute> getAll() {
@@ -42,6 +45,8 @@ public class InstituteController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable("id") String id) {
         if (repository.existsById(id)) {
+            // Delete the institute's classes too, otherwise they'd point at an institute that no longer exists.
+            classRepository.deleteAll(classRepository.findByInstituteId(id));
             repository.deleteById(id);
             return ResponseEntity.ok().build();
         }

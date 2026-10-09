@@ -47,8 +47,8 @@ export function exportStudentsToExcel(
     'Email': student.email,
     'Class': student.className,
     'Section': student.section,
-    'Face Registered': student.faceDescriptor ? 'Yes' : 'No',
-    'Images Count': student.faceImages.length,
+    'Face Registered': student.faceDescriptor?.length ? 'Yes' : 'No',
+    'Images Count': student.faceImageCount ?? student.faceImages?.length ?? 0,
     'Registered On': new Date(student.createdAt).toLocaleDateString(),
   }));
 
@@ -75,7 +75,8 @@ export function exportDailyReport(
 ): void {
   const presentCount = records.filter((r) => r.status === 'present').length;
   const lateCount = records.filter((r) => r.status === 'late').length;
-  const absentCount = totalStudents - presentCount - lateCount;
+  const absentCount = Math.max(0, totalStudents - presentCount - lateCount);
+  const attendanceRate = totalStudents > 0 ? Math.round(((presentCount + lateCount) / totalStudents) * 100) : 0;
 
   const summaryData = [
     { Metric: 'Date', Value: date },
@@ -83,7 +84,7 @@ export function exportDailyReport(
     { Metric: 'Present', Value: presentCount },
     { Metric: 'Late', Value: lateCount },
     { Metric: 'Absent', Value: absentCount },
-    { Metric: 'Attendance Rate', Value: `${Math.round((presentCount / totalStudents) * 100)}%` },
+    { Metric: 'Attendance Rate', Value: `${attendanceRate}%` },
   ];
 
   const attendanceData = records.map((record) => ({

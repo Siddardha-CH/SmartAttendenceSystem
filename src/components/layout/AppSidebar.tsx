@@ -1,4 +1,3 @@
-import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
@@ -20,7 +19,8 @@ const adminNavigation = [
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
 
-export function AppSidebar() {
+/** `onNavigate` lets the mobile drawer close itself when a link is tapped. */
+export function AppSidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
   const { user, logout, isAdmin, canTakeAttendance } = useAuth();
   const location = useLocation();
 
@@ -30,7 +30,7 @@ export function AppSidebar() {
   });
 
   return (
-    <aside className="flex h-screen w-64 flex-col border-r bg-card text-card-foreground">
+    <aside className="flex h-full w-64 flex-col border-r bg-card text-card-foreground">
       {/* Logo */}
       <div className="flex h-16 items-center px-6 border-b">
         <span className="font-bold text-lg">SmartAttend</span>
@@ -46,6 +46,7 @@ export function AppSidebar() {
             <NavLink
               key={item.name}
               to={item.href}
+              onClick={onNavigate}
               className={cn(
                 'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
                 isActive
@@ -69,6 +70,7 @@ export function AppSidebar() {
                 <NavLink
                   key={item.name}
                   to={item.href}
+                  onClick={onNavigate}
                   className={cn(
                     'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
                     isActive

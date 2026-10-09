@@ -16,8 +16,9 @@ public class UserPreferences {
     private String userId;
     
     private String theme;
-    private boolean compactLayout;
-    private boolean enableAnimations;
+    // Boolean (not boolean) so a partial update can leave a field out - see Settings for why.
+    private Boolean compactLayout;
+    private Boolean enableAnimations;
 
     public UserPreferences() {}
 
@@ -27,8 +28,8 @@ public class UserPreferences {
     public void setUserId(String userId) { this.userId = userId; }
     public String getTheme() { return theme; }
     public void setTheme(String theme) { this.theme = theme; }
-    public boolean isCompactLayout() { return compactLayout; }
-    public void setCompactLayout(boolean compactLayout) { this.compactLayout = compactLayout; }
-    public boolean isEnableAnimations() { return enableAnimations; }
-    public void setEnableAnimations(boolean enableAnimations) { this.enableAnimations = enableAnimations; }
+    public Boolean getCompactLayout() { return compactLayout; }
+    public void setCompactLayout(Boolean compactLayout) { this.compactLayout = compactLayout; }
+    public Boolean getEnableAnimations() { return enableAnimations; }
+    public void setEnableAnimations(Boolean enableAnimations) { this.enableAnimations = enableAnimations; }
 }

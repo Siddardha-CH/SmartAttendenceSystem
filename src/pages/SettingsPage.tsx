@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,24 +21,24 @@ export default function SettingsPage() {
   const { toast } = useToast();
   const { preferences, updatePreferences } = useAuth();
 
+  const loadSettings = useCallback(async () => {
+    try {
+      const data = await getSettings();
+      setSettings(data);
+    } catch (error) {
+      toast({ title: 'Error loading settings', description: (error as Error).message, variant: 'destructive' });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [toast]);
+
   useEffect(() => {
     loadSettings();
     loadCameras();
     return () => {
       if (streamRef.current) streamRef.current.getTracks().forEach(track => track.stop());
     };
-  }, []);
-
-  const loadSettings = async () => {
-    try {
-      const data = await getSettings();
-      setSettings(data);
-    } catch (error) {
-      toast({ title: 'Error loading settings', variant: 'destructive' });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  }, [loadSettings]);
 
   const loadCameras = async () => {
     try {
@@ -52,11 +52,12 @@ export default function SettingsPage() {
   const handleUpdateSettings = async (updates: Partial<Settings>) => {
     if (!settings) return;
     try {
+      // Only the changed fields are sent; the server leaves everything else untouched.
       const updated = await updateSettings(updates);
       setSettings(updated);
       toast({ title: 'Settings saved' });
     } catch (error) {
-      toast({ title: 'Failed to save settings', variant: 'destructive' });
+      toast({ title: 'Failed to save settings', description: (error as Error).message, variant: 'destructive' });
     }
   };
 
@@ -99,7 +100,7 @@ export default function SettingsPage() {
       URL.revokeObjectURL(url);
       toast({ title: 'Data exported successfully' });
     } catch (error) {
-      toast({ title: 'Failed to export data', variant: 'destructive' });
+      toast({ title: 'Failed to export data', description: (error as Error).message, variant: 'destructive' });
     }
   };
 
@@ -108,7 +109,7 @@ export default function SettingsPage() {
       await clearAttendanceHistory();
       toast({ title: 'Attendance history cleared' });
     } catch (error) {
-      toast({ title: 'Failed to clear history', variant: 'destructive' });
+      toast({ title: 'Failed to clear history', description: (error as Error).message, variant: 'destructive' });
     }
   };
 
@@ -118,7 +119,7 @@ export default function SettingsPage() {
       toast({ title: 'System reset complete. Reloading...' });
       setTimeout(() => window.location.reload(), 1500);
     } catch (error) {
-      toast({ title: 'Failed to reset system', variant: 'destructive' });
+      toast({ title: 'Failed to reset system', description: (error as Error).message, variant: 'destructive' });
     }
   };
 
@@ -127,7 +128,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Settings</h1>
         <p className="text-muted-foreground">Configure system behavior and preferences</p>
@@ -143,7 +144,7 @@ export default function SettingsPage() {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <Label>Recognition Threshold</Label>
-                <span className="text-sm text-muted-foreground">{Math.round(settings.recognitionThreshold * 100)}%</span>
+                <span className="text-sm text-muted-foreground">{settings.recognitionThreshold.toFixed(2)}</span>
               </div>
               <Slider
                 value={[settings.recognitionThreshold]}
@@ -152,12 +153,12 @@ export default function SettingsPage() {
                 max={0.9}
                 step={0.05}
               />
-              <p className="text-xs text-muted-foreground mt-1">Higher = stricter matching</p>
+              <p className="text-xs text-muted-foreground mt-1">Maximum face distance accepted as a match. Lower = stricter (fewer false matches); 0.6 is a good default.</p>
             </div>
 
             <div>
               <div className="flex items-center justify-between mb-2">
-                <Label>Face Match Tolerance</Label>
+                <Label>Minimum Detection Confidence</Label>
                 <span className="text-sm text-muted-foreground">{settings.faceMatchTolerance.toFixed(2)}</span>
               </div>
               <Slider
@@ -167,6 +168,7 @@ export default function SettingsPage() {
                 max={0.7}
                 step={0.05}
               />
+              <p className="text-xs text-muted-foreground mt-1">How sure the detector must be that something is a face before it is used.</p>
             </div>
 
             <div>
@@ -186,7 +188,7 @@ export default function SettingsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <Label>Face Quality Checks</Label>
-                <p className="text-xs text-muted-foreground">Check for blur, lighting</p>
+                <p className="text-xs text-muted-foreground">Reject unclear or too-small faces when registering</p>
               </div>
               <Switch
                 checked={settings.enableFaceQualityCheck}
@@ -276,8 +278,11 @@ export default function SettingsPage() {
               <Input
                 id="lateThreshold"
                 type="time"
-                value={settings.lateThreshold}
-                onChange={(e) => handleUpdateSettings({ lateThreshold: e.target.value })}
+                defaultValue={settings.lateThreshold}
+                onBlur={(e) => {
+                  // Save when the field loses focus, not on every keystroke.
+                  if (e.target.value && e.target.value !== settings.lateThreshold) handleUpdateSettings({ lateThreshold: e.target.value });
+                }}
               />
               <p className="text-xs text-muted-foreground">Students marked after this time are "Late"</p>
             </div>
@@ -299,7 +304,7 @@ export default function SettingsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <Label>Duplicate Protection</Label>
-                <p className="text-xs text-muted-foreground">Prevent multiple entries per day</p>
+                <p className="text-xs text-muted-foreground">Allow only one record per student per day</p>
               </div>
               <Switch
                 checked={settings.duplicateProtection}
@@ -310,7 +315,7 @@ export default function SettingsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <Label>Manual Override</Label>
-                <p className="text-xs text-muted-foreground">Allow manual attendance</p>
+                <p className="text-xs text-muted-foreground">Show the Mark Manually box on the Attendance page</p>
               </div>
               <Switch
                 checked={settings.allowManualOverride}
@@ -366,7 +371,7 @@ export default function SettingsPage() {
                 <AlertDialogContent>
                   <AlertDialogHeader>
                     <AlertDialogTitle>Factory Reset?</AlertDialogTitle>
-                    <AlertDialogDescription>This will delete ALL data including students, attendance, users, and settings. This cannot be undone!</AlertDialogDescription>
+                    <AlertDialogDescription>This deletes ALL students, face data, attendance, institutes and classes, and restores default settings. User accounts are kept. This cannot be undone!</AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>

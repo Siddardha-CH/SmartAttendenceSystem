@@ -3,12 +3,14 @@ package com.smartattendance.backend.model;
 import jakarta.persistence.*;
 
 @Entity
-@Table(name = "attendance_records")
+// Index on (date, student) because "has this student been marked today?" is asked on every scan.
+@Table(name = "attendance_records", indexes = @Index(name = "idx_attendance_date_student", columnList = "attendance_date, student_id"))
 public class AttendanceRecord {
 
     @Id
     private String id;
-    
+
+    @Column(name = "student_id") // the student's roll number (Student.studentId), not the internal UUID
     private String studentId;
     private String studentName;
 
