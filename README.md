@@ -104,21 +104,22 @@ npx tsc -p tsconfig.app.json --noEmit && npm run lint && npm run build
 
 1. Push this repository to GitHub.
 2. On [render.com](https://render.com): **New → Blueprint**, pick the repo. Render reads `render.yaml` and creates:
-   - `smartattend-db`: PostgreSQL
-   - `smartattend-backend`: the API (Docker)
+   - `smartattend-backend`: the API (Docker), using a **Supabase** PostgreSQL database
    - `smartattend-frontend`: the website (static site)
-3. When asked, enter **ADMIN_PASSWORD** (the password for `admin@school.edu`). Leave **VITE_API_URL** blank for now.
+3. Create a free project on [supabase.com](https://supabase.com). Under **Connect → Session pooler**, note the host, user and password.
+   When Render asks, enter **DB_HOST**, **DB_USERNAME** and **DB_PASSWORD** from there, and **ADMIN_PASSWORD** (the password for `admin@school.edu`). Leave **VITE_API_URL** blank for now.
 4. Wait for the backend to go live, then copy its URL (e.g. `https://smartattend-backend-xxxx.onrender.com`).
 5. Open **smartattend-frontend → Environment**, set `VITE_API_URL` to that URL, then run **Manual Deploy → Clear build cache & deploy**. (Vite bakes the URL into the JavaScript at build time, so a rebuild is required.)
 6. Optional hardening: on the backend, set `CORS_ALLOWED_ORIGINS` to your frontend URL.
 
-**Free-tier notes:** the backend sleeps after 15 minutes idle, so the first request after that takes ~1 minute. Render deletes free PostgreSQL databases after 30 days unless you upgrade. Use *Settings → Export All Data* for backups.
+**Free-tier notes:** the backend sleeps after 15 minutes idle, so the first request after that takes ~1 minute. Supabase free projects pause after a week of no activity (resume them from the Supabase dashboard). Use *Settings → Export All Data* for backups.
 
 ### Environment variables
 
 | Variable | Where | Purpose |
 |---|---|---|
-| `DB_HOST` `DB_PORT` `DB_NAME` `DB_USERNAME` `DB_PASSWORD` | backend (prod) | Set automatically by Render from the database |
+| `DB_HOST` `DB_PORT` `DB_NAME` `DB_USERNAME` `DB_PASSWORD` | backend (prod) | Database connection (Supabase **Session pooler** values; port 5432, db `postgres`) |
+| `DB_SSLMODE` | backend (prod) | `require` for Supabase (default `prefer`) |
 | `DB_URL` | backend (local) | Full JDBC URL for local development |
 | `APP_TOKEN_SECRET` | backend | Signs login tokens. Render generates it. If unset, users are logged out on restart. |
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` | backend | First admin account (only used when there are no users yet) |

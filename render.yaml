@@ -1,7 +1,7 @@
 # Render Blueprint - deploys the whole system with one click:
 #   Render dashboard -> New -> Blueprint -> pick this repository.
 #
-#   smartattend-db        PostgreSQL database (free)
+#   (database)            Supabase PostgreSQL - created on supabase.com, connection details set below
 #   smartattend-backend   Spring Boot API, built from backend/Dockerfile
 #   smartattend-frontend  React app, built with npm and served as a static site (free, global CDN)
 #
@@ -20,26 +20,19 @@ services:
     dockerContext: ./backend
     healthCheckPath: /api/health
     envVars:
+      # Database: Supabase PostgreSQL. Copy these from Supabase -> Connect -> "Session pooler".
       - key: DB_HOST
-        fromDatabase:
-          name: smartattend-db
-          property: host
+        sync: false # e.g. aws-0-ap-south-1.pooler.supabase.com
       - key: DB_PORT
-        fromDatabase:
-          name: smartattend-db
-          property: port
+        value: "5432"
       - key: DB_NAME
-        fromDatabase:
-          name: smartattend-db
-          property: database
+        value: postgres
       - key: DB_USERNAME
-        fromDatabase:
-          name: smartattend-db
-          property: user
+        sync: false # e.g. postgres.abcdefghijklmnop
       - key: DB_PASSWORD
-        fromDatabase:
-          name: smartattend-db
-          property: password
+        sync: false # your Supabase database password
+      - key: DB_SSLMODE
+        value: require
       # Signs login tokens. Render generates a random value once and keeps it.
       - key: APP_TOKEN_SECRET
         generateValue: true
@@ -68,9 +61,3 @@ services:
     envVars:
       - key: VITE_API_URL
         sync: false # e.g. https://smartattend-backend.onrender.com  (Vite reads it at BUILD time)
-
-databases:
-  # Render-managed PostgreSQL (free tier - note Render deletes free databases after 30 days)
-  - name: smartattend-db
-    plan: free
-    region: oregon
